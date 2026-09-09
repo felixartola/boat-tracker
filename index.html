@@ -16,8 +16,6 @@
     <p>Longitude: <span id="longitude">Not available</span></p>
     <p>Accuracy: <span id="accuracy">Not available</span> meters</p>
     <p>Status: <span id="status">Not tracking</span></p>
-    <p>Speed: <span id="speed">Not available</span> m/s</p>
-    <p>Heading: <span id="heading">Not available</span> degrees</p>
     <p>Time: <span id="time">Not available</span></p>
 	
 
@@ -42,23 +40,40 @@
         }
 
 
+
         function locationSuccess(position) {
 
             let latitude = position.coords.latitude;
             let longitude = position.coords.longitude;
             let accuracy = position.coords.accuracy;
-	    let speed = position.coords.speed;
-	    let heading = position.coords.heading;
 
             document.getElementById("latitude").textContent = latitude;
             document.getElementById("longitude").textContent = longitude;
             document.getElementById("accuracy").textContent = accuracy;
-	    document.getElementById("speed").textContent = speed;
 	    document.getElementById("time").textContent = 
 		new Date().toLocaleTimeString();
 
+	    let locationData = {
+		latitude: latitude,
+		longitude: longitude,
+		accuracy: accuracy,
+		timestamp: new Date().toISOString()
+ 	    };
 
-        }
+    fetch("https://boat-server-ugsm.onrender.com/location", {
+	method: "POST",
+	headers: {
+	    "Content-Type": "application/json"
+	},
+
+	body: JSON.stringify(locationData)
+    })
+    .then(response => response.json())
+    .then(data => {
+	console.log("Location saved:", data);
+    });
+
+}
 
 
         function locationError(error) {
@@ -72,7 +87,6 @@
         function stopTracking() {
 
             navigator.geolocation.clearWatch(watchID);
-
             document.getElementById("status").textContent = "Tracking stopped";
 
         }
