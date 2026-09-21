@@ -84,6 +84,8 @@
 
             function startTracking() {
 
+                document.getElementById("startButton").disabled = true; 
+
                 tripID = Date.now().toString();
 
                 console.log("New Trip ID:", tripID)
@@ -158,6 +160,8 @@
             function stopTracking() {
 
                 navigator.geolocation.clearWatch(watchID);
+
+                document.getElementById("startButton").disabled = false;
 
                 document.getElementById("status").textContent =
                     "Tracking stopped";
