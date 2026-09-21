@@ -27,6 +27,7 @@
 
         let watchID;
         let arcgisCredential;
+        let tripID
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
@@ -83,6 +84,8 @@
 
             function startTracking() {
 
+                tripID = Date.now()toString();
+
                 document.getElementById("status").textContent = "Tracking...";
 
                 watchID = navigator.geolocation.watchPosition(
@@ -121,6 +124,7 @@
                     attributes: {
                         esrignss_fixdatetime: Date.now(),
                         esrignss_h_rms: accuracy
+                        trip_id: tripID
                     }
                 });
 
