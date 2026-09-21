@@ -84,7 +84,7 @@
 
             function startTracking() {
 
-                tripID = Date.now()toString();
+                tripID = Date.now().toString();
 
                 document.getElementById("status").textContent = "Tracking...";
 
@@ -123,7 +123,7 @@
                     geometry: point,
                     attributes: {
                         esrignss_fixdatetime: Date.now(),
-                        esrignss_h_rms: accuracy
+                        esrignss_h_rms: accuracy,
                         trip_id: tripID
                     }
                 });
