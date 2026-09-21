@@ -1,140 +1,169 @@
 <!DOCTYPE html>
 
 <html>
-	
+
 <head>
-	<title>Boat GPS Tracker</title>
-	<script src="https://js.arcgis.com/4.34/"></script>
+    <title>Boat GPS Tracker</title>
+    <script src="https://js.arcgis.com/4.34/"></script>
 </head>
 
 <body>
 
-	<h1>Boat GPS Tracker</h1>
+    <h1>Boat GPS Tracker</h1>
 
-	<button id="signInButton">Sign In to ArcGIS</button>
-	<p>ArcGIS: <span id="arcgisStatus">Not signed in</span></p>
-	
-	<button id="startButton">Start Tracking</button>
-	<button id="stopButton">Stop Tracking</button>
-	
-	<p>Latitude: <span id="latitude">Not available</span></p>
-	<p>Longitude: <span id="longitude">Not available</span></p>
-	<p>Accuracy: <span id="accuracy">Not available</span> meters</p>
-	<p>Status: <span id="status">Not tracking</span></p>
-	<p>Time: <span id="time">Not available</span></p>
-	
-	<script>
-		
-let watchID;
-let arcgisCredential;
+    <button id="signInButton">Sign In to ArcGIS</button>
+    <p>ArcGIS: <span id="arcgisStatus">Not signed in</span></p>
 
-const portalURL = "https://www.arcgis.com";
-const clientID = "MpbbtiE8vXvj6by6";
+    <button id="startButton">Start Tracking</button>
+    <button id="stopButton">Stop Tracking</button>
 
-require([
-    "esri/identity/OAuthInfo",
-    "esri/identity/IdentityManager"
-], function(OAuthInfo, esriId) {
+    <p>Latitude: <span id="latitude">Not available</span></p>
+    <p>Longitude: <span id="longitude">Not available</span></p>
+    <p>Accuracy: <span id="accuracy">Not available</span> meters</p>
+    <p>Status: <span id="status">Not tracking</span></p>
+    <p>Time: <span id="time">Not available</span></p>
 
-    const info = new OAuthInfo({
-        appId: clientID,
-        portalUrl: portalURL,
-        popup: false
-    });
+    <script>
 
-    esriId.registerOAuthInfos([info]);
+        let watchID;
+        let arcgisCredential;
 
-    // Check whether the user is already signed in
-    esriId.checkSignInStatus(
-        portalURL + "/sharing"
-    ).then(function(credential) {
+        const portalURL = "https://www.arcgis.com";
+        const clientID = "MpbbtiE8vXvj6by6";
 
-        arcgisCredential = credential;
+        require([
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic"
+        ], function(OAuthInfo, esriId, FeatureLayer, Graphic) {
 
-        document.getElementById("arcgisStatus").textContent =
-            "Signed in";
+            const info = new OAuthInfo({
+                appId: clientID,
+                portalUrl: portalURL,
+                popup: false
+            });
 
-    }).catch(function() {
-        // Not signed in yet
-    });
+            esriId.registerOAuthInfos([info]);
 
-    document.getElementById("signInButton").addEventListener(
-        "click",
-        function() {
-            esriId.getCredential(
+            const boatLayer = new FeatureLayer({
+                url: "https://services1.arcgis.com/ug7Y0GY6kYE0tf0p/arcgis/rest/services/boat_gps/FeatureServer/0"
+            });
+
+            // Check whether the user is already signed in
+            esriId.checkSignInStatus(
                 portalURL + "/sharing"
             ).then(function(credential) {
+
                 arcgisCredential = credential;
+
                 document.getElementById("arcgisStatus").textContent =
                     "Signed in";
+
+            }).catch(function() {
+                // Not signed in yet
             });
-        }
-    );
-});
-		
-		function startTracking() {
-			document.getElementById("status").textContent = "Tracking...";
-			watchID = navigator.geolocation.watchPosition(
-				locationSuccess,
-				locationError,
-				{
-					enableHighAccuracy: true
-				}
-			);
-		}
 
-		function locationSuccess(position) {
+            document.getElementById("signInButton").addEventListener(
+                "click",
+                function() {
 
-			let latitude = position.coords.latitude;
-			let longitude = position.coords.longitude;
-			let accuracy = position.coords.accuracy;
+                    esriId.getCredential(
+                        portalURL + "/sharing"
+                    ).then(function(credential) {
 
-			document.getElementById("latitude").textContent = latitude;
-			document.getElementById("longitude").textContent = longitude;
-			document.getElementById("accuracy").textContent = accuracy;
-		document.getElementById("time").textContent = 
-		new Date().toLocaleTimeString();
+                        arcgisCredential = credential;
 
-		let locationData = {
-		latitude: latitude,
-		longitude: longitude,
-		accuracy: accuracy,
-		timestamp: new Date().toISOString()
- 		};
+                        document.getElementById("arcgisStatus").textContent =
+                            "Signed in";
+                    });
+                }
+            );
 
-	fetch("https://boat-server-ugsm.onrender.com/location", {
-	method: "POST",
-	headers: {
-		"Content-Type": "application/json"
-	},
 
-	body: JSON.stringify(locationData)
-	})
-	.then(response => response.json())
-	.then(data => {
-	console.log("Location saved:", data);
-	});
-}
-		
-		function locationError(error) {
-			document.getElementById("status").textContent =
-				"Location error: " + error.message;
-		}
+            function startTracking() {
 
-		function stopTracking() {
-			navigator.geolocation.clearWatch(watchID);
-			document.getElementById("status").textContent = "Tracking stopped";
-		}
+                document.getElementById("status").textContent = "Tracking...";
 
-		document.getElementById("startButton").addEventListener(
-			"click",
-			startTracking
-		);
+                watchID = navigator.geolocation.watchPosition(
+                    locationSuccess,
+                    locationError,
+                    {
+                        enableHighAccuracy: true
+                    }
+                );
+            }
 
-		document.getElementById("stopButton").addEventListener(
-			"click",
-			stopTracking
-		);
+
+            function locationSuccess(position) {
+
+                let latitude = position.coords.latitude;
+                let longitude = position.coords.longitude;
+                let accuracy = position.coords.accuracy;
+
+                document.getElementById("latitude").textContent = latitude;
+                document.getElementById("longitude").textContent = longitude;
+                document.getElementById("accuracy").textContent = accuracy;
+                document.getElementById("time").textContent =
+                    new Date().toLocaleTimeString();
+
+                const point = {
+                    type: "point",
+                    longitude: longitude,
+                    latitude: latitude,
+                    spatialReference: {
+                        wkid: 4326
+                    }
+                };
+
+                const boatPosition = new Graphic({
+                    geometry: point
+                });
+
+                boatLayer.applyEdits({
+                    addFeatures: [boatPosition]
+                })
+                .then(function(result) {
+
+                    console.log("Location saved to ArcGIS:", result);
+
+                })
+                .catch(function(error) {
+
+                    console.error("ArcGIS save failed:", error);
+
+                });
+            }
+
+
+            function locationError(error) {
+
+                document.getElementById("status").textContent =
+                    "Location error: " + error.message;
+            }
+
+
+            function stopTracking() {
+
+                navigator.geolocation.clearWatch(watchID);
+
+                document.getElementById("status").textContent =
+                    "Tracking stopped";
+            }
+
+
+            document.getElementById("startButton").addEventListener(
+                "click",
+                startTracking
+            );
+
+            document.getElementById("stopButton").addEventListener(
+                "click",
+                stopTracking
+            );
+
+        });
+
     </script>
+
 </body>
-</html>
