@@ -86,6 +86,8 @@
 
                 tripID = Date.now().toString();
 
+                console.log("New Trip ID:". tripID)
+
                 document.getElementById("status").textContent = "Tracking...";
 
                 watchID = navigator.geolocation.watchPosition(
@@ -127,6 +129,8 @@
                         trip_id: tripID
                     }
                 });
+
+                console.log("Saving point with Trip ID:", tripID)
 
                 boatLayer.applyEdits({
                     addFeatures: [boatPosition]
