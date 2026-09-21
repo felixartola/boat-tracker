@@ -27,7 +27,9 @@
 
         let watchID;
         let arcgisCredential;
-        let tripID
+        let tripID;
+        let pathCoordinates = [];
+        let pathObjectID = null;
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
@@ -49,6 +51,9 @@
 
             const boatLayer = new FeatureLayer({
                 url: "https://services1.arcgis.com/ug7Y0GY6kYE0tf0p/arcgis/rest/services/boat_gps/FeatureServer/0"
+            });
+            const pathLayer = new FeatureLayer({
+                url: "https://services1.arcgis.com/ug7Y0GY6kYE0tf0p/arcgis/rest/services/boat_paths/FeatureServer/0"
             });
 
             // Check whether the user is already signed in
@@ -85,11 +90,9 @@
             function startTracking() {
 
                 document.getElementById("startButton").disabled = true; 
-
                 tripID = Date.now().toString();
-
-                console.log("New Trip ID:", tripID)
-
+                pathCoordinates = [];
+                pathObjectID = null;
                 document.getElementById("status").textContent = "Tracking...";
 
                 watchID = navigator.geolocation.watchPosition(
@@ -132,21 +135,91 @@
                     }
                 });
 
+                pathCoordinates.push([longitude,latitude]);
+
                 console.log("Saving point with Trip ID:", tripID)
 
                 boatLayer.applyEdits({
                     addFeatures: [boatPosition]
                 })
                 .then(function(result) {
-
                     console.log("Location saved to ArcGIS:", result);
+                })
+                .catch(function(error) {
+                    console.error("ArcGIS save failed:", error);
+                });
 
+                if (pathCoordinates.length >= 2) {
+
+                    const path = {
+                        type: "polyline",
+                        paths: [pathCoordinates],
+                        spatialReference: {
+                            wkid: 4326
+                    }
+                };
+                    
+                if (pathObjectID === null) {
+                    const newPath = new Graphic({
+                        geometry: path,
+                        attributes: {
+                            trip_id: tripID
+                        }
+                    });
+                    
+                pathLayer.applyEdits({
+                    addFeatures: [newPath]
+                })
+                .then(function(result) {
+
+                    pathObjectID =
+                        result.addFeatureResults[0].objectId;
+
+                    console.log(
+                        "New path created:",
+                        pathObjectID
+                    );
                 })
                 .catch(function(error) {
 
-                    console.error("ArcGIS save failed:", error);
-
+                    console.error(
+                        "Path creation failed:",
+                        error
+                    );
                 });
+
+            } else {
+
+                const updatedPath = new Graphic({
+                    geometry: path,
+                    attributes: {
+                        OBJECTID: pathObjectID,
+                        trip_id: tripID
+                    }
+                });
+
+                pathLayer.applyEdits({
+                    updateFeatures: [updatedPath]
+                })
+                .then(function(result) {
+
+                    console.log(
+                        "Path updated:",
+                        result
+                    );
+                })
+                .catch(function(error) {
+
+                    console.error(
+                        "Path update failed:",
+                        error
+                    );
+                });
+            }
+        }
+                
+               
+                
             }
 
 
