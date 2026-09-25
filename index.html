@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-
 <html>
-
 <head>
     <title>Boat GPS Tracker</title>
     <script src="https://js.arcgis.com/4.34/"></script>
 </head>
-
 <body>
 
     <h1>Boat GPS Tracker</h1>
@@ -39,7 +36,7 @@
             "esri/identity/IdentityManager",
             "esri/layers/FeatureLayer",
             "esri/Graphic"
-        ], function(OAuthInfo, esriId, FeatureLayer, Graphic) {
+        ], function (OAuthInfo, esriId, FeatureLayer, Graphic) {
 
             const info = new OAuthInfo({
                 appId: clientID,
@@ -57,39 +54,45 @@
             });
 
             // Check whether the user is already signed in
-            esriId.checkSignInStatus(
-                portalURL + "/sharing"
-            ).then(function(credential) {
+            esriId.checkSignInStatus(portalURL + "/sharing")
+                .then(function (credential) {
+                    arcgisCredential = credential;
+                    document.getElementById("arcgisStatus").textContent = "Signed in";
+                })
+                .catch(function () {
+                    // Not signed in yet
+                });
 
-                arcgisCredential = credential;
-
-                document.getElementById("arcgisStatus").textContent =
-                    "Signed in";
-
-            }).catch(function() {
-                // Not signed in yet
-            });
-
-            document.getElementById("signInButton").addEventListener(
-                "click",
-                function() {
-
-                    esriId.getCredential(
-                        portalURL + "/sharing"
-                    ).then(function(credential) {
-
+            document.getElementById("signInButton").addEventListener("click", function () {
+                esriId.getCredential(portalURL + "/sharing")
+                    .then(function (credential) {
                         arcgisCredential = credential;
-
-                        document.getElementById("arcgisStatus").textContent =
-                            "Signed in";
+                        document.getElementById("arcgisStatus").textContent = "Signed in";
+                        document.getElementById("signInButton").disabled = true;
+                    })
+                    .catch(function (error) {
+                        console.error("Sign-in failed:", error);
                     });
-                }
-            );
-
+            });
 
             function startTracking() {
 
-                document.getElementById("startButton").disabled = true; 
+                // Bug fix: don't start tracking if not signed in — otherwise
+                // every applyEdits call below will silently fail.
+                if (!arcgisCredential) {
+                    document.getElementById("status").textContent =
+                        "Please sign in to ArcGIS before tracking.";
+                    return;
+                }
+
+                // Bug fix: check that the browser actually supports geolocation.
+                if (!navigator.geolocation) {
+                    document.getElementById("status").textContent =
+                        "Geolocation is not supported by this browser.";
+                    return;
+                }
+
+                document.getElementById("startButton").disabled = true;
                 tripID = Date.now().toString();
                 pathCoordinates = [];
                 pathObjectID = null;
@@ -104,7 +107,6 @@
                 );
             }
 
-
             function locationSuccess(position) {
 
                 let latitude = position.coords.latitude;
@@ -114,8 +116,7 @@
                 document.getElementById("latitude").textContent = latitude;
                 document.getElementById("longitude").textContent = longitude;
                 document.getElementById("accuracy").textContent = accuracy;
-                document.getElementById("time").textContent =
-                    new Date().toLocaleTimeString();
+                document.getElementById("time").textContent = new Date().toLocaleTimeString();
 
                 const point = {
                     type: "point",
@@ -135,19 +136,19 @@
                     }
                 });
 
-                pathCoordinates.push([longitude,latitude]);
+                pathCoordinates.push([longitude, latitude]);
 
-                console.log("Saving point with Trip ID:", tripID)
+                console.log("Saving point with Trip ID:", tripID);
 
                 boatLayer.applyEdits({
                     addFeatures: [boatPosition]
                 })
-                .then(function(result) {
-                    console.log("Location saved to ArcGIS:", result);
-                })
-                .catch(function(error) {
-                    console.error("ArcGIS save failed:", error);
-                });
+                    .then(function (result) {
+                        console.log("Location saved to ArcGIS:", result);
+                    })
+                    .catch(function (error) {
+                        console.error("ArcGIS save failed:", error);
+                    });
 
                 if (pathCoordinates.length >= 2) {
 
@@ -156,103 +157,69 @@
                         paths: [pathCoordinates],
                         spatialReference: {
                             wkid: 4326
-                    }
-                };
-                    
-                if (pathObjectID === null) {
-                    const newPath = new Graphic({
-                        geometry: path,
-                        attributes: {
-                            trip_id: tripID
                         }
-                    });
-                    
-                pathLayer.applyEdits({
-                    addFeatures: [newPath]
-                })
-                .then(function(result) {
+                    };
 
-                    pathObjectID =
-                        result.addFeatureResults[0].objectId;
+                    if (pathObjectID === null) {
 
-                    console.log(
-                        "New path created:",
-                        pathObjectID
-                    );
-                })
-                .catch(function(error) {
+                        const newPath = new Graphic({
+                            geometry: path,
+                            attributes: {
+                                trip_id: tripID
+                            }
+                        });
 
-                    console.error(
-                        "Path creation failed:",
-                        error
-                    );
-                });
+                        pathLayer.applyEdits({
+                            addFeatures: [newPath]
+                        })
+                            .then(function (result) {
+                                pathObjectID = result.addFeatureResults[0].objectId;
+                                console.log("New path created:", pathObjectID);
+                            })
+                            .catch(function (error) {
+                                console.error("Path creation failed:", error);
+                            });
 
-            } else {
+                    } else {
 
-                const updatedPath = new Graphic({
-                    geometry: path,
-                    attributes: {
-                        OBJECTID: pathObjectID,
-                        trip_id: tripID
+                        const updatedPath = new Graphic({
+                            geometry: path,
+                            attributes: {
+                                OBJECTID: pathObjectID,
+                                trip_id: tripID
+                            }
+                        });
+
+                        pathLayer.applyEdits({
+                            updateFeatures: [updatedPath]
+                        })
+                            .then(function (result) {
+                                console.log("Path updated:", result);
+                            })
+                            .catch(function (error) {
+                                console.error("Path update failed:", error);
+                            });
                     }
-                });
-
-                pathLayer.applyEdits({
-                    updateFeatures: [updatedPath]
-                })
-                .then(function(result) {
-
-                    console.log(
-                        "Path updated:",
-                        result
-                    );
-                })
-                .catch(function(error) {
-
-                    console.error(
-                        "Path update failed:",
-                        error
-                    );
-                });
+                }
             }
-        }
-                
-               
-                
-            }
-
 
             function locationError(error) {
-
                 document.getElementById("status").textContent =
                     "Location error: " + error.message;
             }
 
-
             function stopTracking() {
-
                 navigator.geolocation.clearWatch(watchID);
-
                 document.getElementById("startButton").disabled = false;
-
-                document.getElementById("status").textContent =
-                    "Tracking stopped";
+                document.getElementById("status").textContent = "Tracking stopped";
             }
 
-
-            document.getElementById("startButton").addEventListener(
-                "click",
-                startTracking
-            );
-
-            document.getElementById("stopButton").addEventListener(
-                "click",
-                stopTracking
-            );
+            document.getElementById("startButton").addEventListener("click", startTracking);
+            document.getElementById("stopButton").addEventListener("click", stopTracking);
 
         });
 
     </script>
 
 </body>
+</html>
