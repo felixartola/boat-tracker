@@ -30,9 +30,9 @@
         let watchID;
         let arcgisCredential;
         let tripID;
-        let Coordinates = [];
-        let ObjectID = null;
-        let CreationInProgress = false; // guards against the race condition described below
+        let pathCoordinates = [];
+        let pathObjectID = null;
+        let pathCreationInProgress = false; // guards against the race condition described below
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
@@ -76,7 +76,7 @@
             const boatLayer = new FeatureLayer({
                 url: "https://services1.arcgis.com/ug7Y0GY6kYE0tf0p/arcgis/rest/services/boat_gps/FeatureServer/0"
             });
-            const Layer = new FeatureLayer({
+            const pathLayer = new FeatureLayer({
                 url: "https://services1.arcgis.com/ug7Y0GY6kYE0tf0p/arcgis/rest/services/boat_tracks/FeatureServer/0"
             });
 
@@ -121,8 +121,8 @@
 
                 document.getElementById("startButton").disabled = true;
                 tripID = Date.now().toString();
-                Coordinates = [];
-                ObjectID = null;
+                pathCoordinates = [];
+                pathObjectID = null;
                 document.getElementById("status").textContent = "Tracking...";
 
                 watchID = navigator.geolocation.watchPosition(
@@ -163,9 +163,9 @@
                     }
                 });
 
-                Coordinates.push([longitude, latitude]);
+                pathCoordinates.push([longitude, latitude]);
 
-                logMessage("Attempting to save point #" + Coordinates.length + " (trip " + tripID + ")");
+                logMessage("Attempting to save point #" + pathCoordinates.length + " (trip " + tripID + ")");
 
                 boatLayer.applyEdits({
                     addFeatures: [boatPosition]
