@@ -13,8 +13,7 @@
 
     <div id="map"></div>
     
-    <button id="startButton">Start Tracking</button>
-    <button id="stopButton">Stop Tracking</button>
+    <button id="trackingButton">Start Tracking</button>
 
     <p>Latitude: <span id="latitude">Not available</span></p>
     <p>Longitude: <span id="longitude">Not available</span></p>
@@ -29,7 +28,8 @@
 
     <script>
 
-        let watchID;
+        let watchID = null;
+        let isTracking = false;
         let arcgisCredential;
         let tripID;
         let pathCoordinates = [];
@@ -38,6 +38,11 @@
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
+
+        function syncTrackingButton() {
+            const button = document.getElementById("trackingButton");
+            button.textContent = isTracking ? "Stop Tracking" : "Start Tracking";
+        }
         
         function logMessage(message, isError) {
             const logDiv = document.getElementById("debugLog");
@@ -121,25 +126,32 @@
 
             function startTracking() {
 
-                // Bug fix: don't start tracking if not signed in — otherwise
-                // every applyEdits call below will silently fail.
+                // Don't start tracking if not signed in.
                 if (!arcgisCredential) {
                     document.getElementById("status").textContent =
                         "Please sign in to ArcGIS before tracking.";
+                    isTracking = false;
+                    syncTrackingButton();
                     return;
                 }
 
-                // Bug fix: check that the browser actually supports geolocation.
+                // Check browser support before attempting geolocation.
                 if (!navigator.geolocation) {
                     document.getElementById("status").textContent =
                         "Geolocation is not supported by this browser.";
+                    isTracking = false;
+                    syncTrackingButton();
                     return;
                 }
 
-                document.getElementById("startButton").disabled = true;
+                if (watchID !== null) {
+                    navigator.geolocation.clearWatch(watchID);
+                }
+
                 tripID = Date.now().toString();
                 pathCoordinates = [];
                 pathObjectID = null;
+                pathCreationInProgress = false;
                 document.getElementById("status").textContent = "Tracking...";
 
                 watchID = navigator.geolocation.watchPosition(
@@ -149,6 +161,9 @@
                         enableHighAccuracy: true
                     }
                 );
+
+                isTracking = true;
+                syncTrackingButton();
             }
 
             function locationSuccess(position) {
@@ -213,11 +228,7 @@
 
                     if (pathObjectID === null) {
 
-                        // Bug fix: without this guard, a second GPS fix that
-                        // arrives before the first addFeatures call finishes
-                        // sees pathObjectID still null and tries to create a
-                        // SECOND path feature, causing duplicates or dropped
-                        // updates. This flag makes later fixes wait.
+                        // Guard against duplicate path creation while one is already in progress.
                         if (pathCreationInProgress) {
                             logMessage("Path creation already in progress, skipping this fix.");
                             return;
@@ -294,16 +305,32 @@
                 document.getElementById("status").textContent =
                     "Location error: " + error.message;
                 logMessage("Geolocation error: " + error.message, true);
+
+                isTracking = false;
+                syncTrackingButton();
             }
 
             function stopTracking() {
-                navigator.geolocation.clearWatch(watchID);
-                document.getElementById("startButton").disabled = false;
+                if (watchID !== null) {
+                    navigator.geolocation.clearWatch(watchID);
+                    watchID = null;
+                }
+
+                pathCreationInProgress = false;
                 document.getElementById("status").textContent = "Tracking stopped";
+                isTracking = false;
+                syncTrackingButton();
             }
 
-            document.getElementById("startButton").addEventListener("click", startTracking);
-            document.getElementById("stopButton").addEventListener("click", stopTracking);
+            syncTrackingButton();
+
+            document.getElementById("trackingButton").addEventListener("click", function () {
+                if (isTracking) {
+                    stopTracking();
+                } else {
+                    startTracking();
+                }
+            });
 
         });
 
