@@ -35,7 +35,7 @@ body {
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
 }
 
@@ -44,6 +44,7 @@ body {
   color: white;
   padding: 24px 28px;
   box-shadow: var(--shadow-strong);
+  flex-shrink: 0;
 }
 
 .header h1 {
@@ -63,6 +64,7 @@ body {
   display: flex;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
 }
 
 .map-section {
@@ -178,7 +180,6 @@ body {
   background: linear-gradient(135deg, var(--primary-color), #2563eb);
   color: white;
   padding: 11px 16px;
-  width: 100%;
   font-size: 0.95rem;
 }
 
@@ -385,8 +386,7 @@ body {
   }
 
   .container {
-    height: auto;
-    min-height: 100vh;
+    min-height: auto;
   }
 }
 
