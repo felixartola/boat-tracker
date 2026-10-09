@@ -1,10 +1,16 @@
-/* Global Styles */
+/* ========================
+   GLOBAL STYLES & RESET
+   ======================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* ========================
+   CSS VARIABLES & THEMING
+   Adjust colors, shadows, and spacing here
+   ======================== */
 :root {
   --primary-color: #0066cc;
   --primary-dark: #0052a3;
@@ -21,6 +27,10 @@
   --radius: 12px;
 }
 
+/* ========================
+   BODY & PAGE LAYOUT
+   Adjust overall page background and dimensions here
+   ======================== */
 html, body {
   height: 100%;
 }
@@ -32,6 +42,10 @@ body {
   line-height: 1.5;
 }
 
+/* ========================
+   CONTAINER & MAIN LAYOUT
+   Adjust page height, overflow, and flex layout here
+   ======================== */
 .container {
   display: flex;
   flex-direction: column;
@@ -39,6 +53,10 @@ body {
   overflow: hidden;
 }
 
+/* ========================
+   HEADER STYLING
+   Adjust header background, padding, and typography here
+   ======================== */
 .header {
   background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 50%, #7c3aed 100%);
   color: white;
@@ -60,6 +78,10 @@ body {
   font-size: 0.95rem;
 }
 
+/* ========================
+   MAIN CONTENT AREA
+   Adjust layout proportions and scrolling behavior here
+   ======================== */
 .main-content {
   display: flex;
   flex: 1;
@@ -67,6 +89,10 @@ body {
   overflow-y: auto;
 }
 
+/* ========================
+   MAP SECTION
+   Adjust map container padding, flex ratio, and sizing here
+   ======================== */
 .map-section {
   flex: 1.6;
   min-width: 0;
@@ -83,6 +109,10 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* ========================
+   SIDEBAR & CARDS
+   Adjust sidebar width, spacing, and card styling here
+   ======================== */
 .sidebar {
   flex: 0 0 360px;
   display: flex;
@@ -103,6 +133,10 @@ body {
   overflow: hidden;
 }
 
+/* ========================
+   CARD HEADER
+   Adjust card title styling, font size, and spacing here
+   ======================== */
 .card-header {
   display: flex;
   align-items: center;
@@ -148,6 +182,10 @@ body {
   padding: 0 18px 16px 18px;
 }
 
+/* ========================
+   BUTTONS
+   Adjust button padding, colors, sizing, and hover effects here
+   ======================== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -176,6 +214,7 @@ body {
   box-shadow: none;
 }
 
+/* PRIMARY BUTTON - Sign In to ArcGIS, Start Tracking, etc. */
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-color), #2563eb);
   color: white;
@@ -183,33 +222,42 @@ body {
   font-size: 0.95rem;
 }
 
+/* SUCCESS BUTTON - Positive/confirm actions */
 .btn-success {
   background: linear-gradient(135deg, var(--success-color), var(--success-dark));
   color: white;
 }
 
+/* DANGER BUTTON - Delete/stop actions */
 .btn-danger {
   background: linear-gradient(135deg, var(--danger-color), var(--danger-dark));
   color: white;
 }
 
+/* SECONDARY BUTTON - Less prominent actions */
 .btn-secondary {
   background: var(--light-gray);
   color: var(--text-dark);
   border: 1px solid var(--border-color);
 }
 
+/* LARGE BUTTON - Full width buttons */
 .btn-lg {
   width: 100%;
   padding: 12px 18px;
   font-size: 1rem;
 }
 
+/* SMALL BUTTON - Compact buttons */
 .btn-small {
   padding: 6px 10px;
   font-size: 0.72rem;
 }
 
+/* ========================
+   STATUS DISPLAY
+   Adjust status row spacing and label positioning here
+   ======================== */
 .status-row {
   display: flex;
   align-items: center;
@@ -251,6 +299,10 @@ body {
   font-size: 0.9rem;
 }
 
+/* ========================
+   DATA DISPLAY (Location, Speed, etc.)
+   Adjust text size, spacing, font, and positioning of data values here
+   ======================== */
 .data-row {
   display: flex;
   align-items: center;
@@ -269,6 +321,7 @@ body {
   font-weight: 600;
 }
 
+/* Location data text, coordinates, speed values, etc. */
 .data-value {
   color: var(--text-dark);
   font-weight: 700;
@@ -276,17 +329,23 @@ body {
   font-size: 0.85rem;
 }
 
+/* Highlighted data values (e.g., large numbers) */
 .data-value.highlight {
   color: #0f766e;
   font-size: 1.2rem;
 }
 
+/* Units suffix (km, mph, etc.) */
 .data-unit {
   font-size: 0.72rem;
   color: var(--text-light);
   margin-left: 4px;
 }
 
+/* ========================
+   DEBUG LOG & ERROR DISPLAY
+   Adjust debug log height, font size, and error styling here
+   ======================== */
 .debug-log {
   border: 1px solid var(--border-color);
   border-radius: 10px;
@@ -306,7 +365,10 @@ body {
   font-weight: 700;
 }
 
-/* Debug Menu Styles */
+/* ========================
+   DEBUG MENU (Bottom controls)
+   Adjust debug menu padding, toggle button, and panel styling here
+   ======================== */
 .debug-menu {
   padding: 18px;
   background: rgba(255,255,255,0.35);
@@ -369,6 +431,10 @@ body {
   margin-bottom: 12px;
 }
 
+/* ========================
+   RESPONSIVE LAYOUT
+   Tablet & below (980px): Stack sidebar below map
+   ======================== */
 @media (max-width: 980px) {
   .main-content {
     flex-direction: column;
@@ -390,6 +456,10 @@ body {
   }
 }
 
+/* ========================
+   MOBILE LAYOUT
+   Phone & small screens (600px): Reduce padding and adjust spacing
+   ======================== */
 @media (max-width: 600px) {
   .header {
     padding: 18px 16px;
