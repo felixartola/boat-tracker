@@ -88,15 +88,17 @@ body {
   gap: 16px;
   padding: 18px 18px 18px 0;
   background: rgba(255,255,255,0.35);
+  overflow-y: auto;
 }
 
 .card {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 0;
   box-shadow: var(--shadow);
   backdrop-filter: blur(2px);
+  overflow: hidden;
 }
 
 .card-header {
@@ -109,7 +111,39 @@ body {
   text-transform: uppercase;
   font-weight: 700;
   color: var(--text-light);
-  margin-bottom: 12px;
+  padding: 16px 18px;
+}
+
+.card-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.card-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.toggle-icon {
+  display: inline-block;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+  margin-right: 6px;
+}
+
+.card-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.card-panel.open {
+  max-height: 500px;
+  padding: 0 18px 16px 18px;
 }
 
 .btn {
@@ -182,6 +216,7 @@ body {
   gap: 10px;
   margin-top: 12px;
   font-size: 0.9rem;
+  padding: 16px 18px;
 }
 
 .status-label {
@@ -270,6 +305,69 @@ body {
   font-weight: 700;
 }
 
+/* Debug Menu Styles */
+.debug-menu {
+  padding: 18px;
+  background: rgba(255,255,255,0.35);
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.debug-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 11px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: background-color 0.15s ease;
+}
+
+.debug-toggle:hover {
+  background-color: rgba(248, 249, 250, 1);
+}
+
+.debug-toggle-icon {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
+.debug-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  margin-top: 0;
+}
+
+.debug-panel.open {
+  max-height: 300px;
+  margin-top: 12px;
+}
+
+.debug-panel-content {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+
+.debug-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+
 @media (max-width: 980px) {
   .main-content {
     flex-direction: column;
@@ -298,12 +396,14 @@ body {
   }
 
   .sidebar,
-  .map-section {
+  .map-section,
+  .debug-menu {
     padding-left: 12px;
     padding-right: 12px;
   }
 
-  .card {
+  .card,
+  .debug-panel-content {
     padding: 14px;
   }
 }
