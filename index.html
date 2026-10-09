@@ -1,32 +1,96 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css">
     <link rel="stylesheet" href="style.css">
     <title>Boat GPS Tracker</title>
     <script src="https://js.arcgis.com/4.34/"></script>
 </head>
 <body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>⛵ Boat GPS Tracker</h1>
+            <p class="subtitle">Real-time location tracking and path visualization</p>
+        </header>
 
-    <h1>Boat GPS Tracker</h1>
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Map Section -->
+            <div class="map-section">
+                <div id="map" class="map"></div>
+            </div>
 
-    <button id="signInButton">Sign In to ArcGIS</button>
-    <p>ArcGIS: <span id="arcgisStatus">Not signed in</span></p>
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Authentication Card -->
+                <div class="card auth-card">
+                    <div class="card-header">Authentication</div>
+                    <button id="signInButton" class="btn btn-primary">Sign In to ArcGIS</button>
+                    <div class="status-row">
+                        <span class="status-label">Status:</span>
+                        <span id="arcgisStatus" class="status-badge status-offline">Not signed in</span>
+                    </div>
+                </div>
 
-    <div id="map"></div>
-    
-    <button id="trackingButton">Start Tracking</button>
+                <!-- Tracking Control Card -->
+                <div class="card control-card">
+                    <div class="card-header">Tracking Control</div>
+                    <button id="trackingButton" class="btn btn-success btn-lg">Start Tracking</button>
+                    <div class="status-row">
+                        <span class="status-label">Status:</span>
+                        <span id="status" class="status-text">Not tracking</span>
+                    </div>
+                </div>
 
-    <p>Latitude: <span id="latitude">Not available</span></p>
-    <p>Longitude: <span id="longitude">Not available</span></p>
-    <p>Accuracy: <span id="accuracy">Not available</span> meters</p>
-    <p>Status: <span id="status">Not tracking</span></p>
-    <p>Time: <span id="time">Not available</span></p>
-    <p>Points saved: <span id="pointCount">0</span> | Path status: <span id="pathStatus">No path yet</span></p>
+                <!-- Location Data Card -->
+                <div class="card data-card">
+                    <div class="card-header">Location Data</div>
+                    <div class="data-row">
+                        <span class="data-label">Latitude:</span>
+                        <span id="latitude" class="data-value">Not available</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Longitude:</span>
+                        <span id="longitude" class="data-value">Not available</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Accuracy:</span>
+                        <span id="accuracy" class="data-value">Not available</span>
+                        <span class="data-unit">m</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Time:</span>
+                        <span id="time" class="data-value">Not available</span>
+                    </div>
+                </div>
 
-    <h3>Debug Log</h3>
-    <div id="debugLog" class="debug-log"></div>
-    <button id="clearLogButton">Clear Log</button>
+                <!-- Path Statistics Card -->
+                <div class="card stats-card">
+                    <div class="card-header">Path Statistics</div>
+                    <div class="data-row">
+                        <span class="data-label">Points Saved:</span>
+                        <span id="pointCount" class="data-value highlight">0</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Path Status:</span>
+                        <span id="pathStatus" class="data-value">No path yet</span>
+                    </div>
+                </div>
+
+                <!-- Debug Log Card -->
+                <div class="card debug-card">
+                    <div class="card-header">
+                        Debug Log
+                        <button id="clearLogButton" class="btn btn-small btn-secondary">Clear</button>
+                    </div>
+                    <div id="debugLog" class="debug-log"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
 
     <script>
 
@@ -44,6 +108,7 @@
         function syncTrackingButton() {
             const button = document.getElementById("trackingButton");
             button.textContent = isTracking ? "Stop Tracking" : "Start Tracking";
+            button.className = isTracking ? "btn btn-danger btn-lg" : "btn btn-success btn-lg";
         }
         
         function logMessage(message, isError) {
@@ -109,6 +174,7 @@
                 .then(function (credential) {
                     arcgisCredential = credential;
                     document.getElementById("arcgisStatus").textContent = "Signed in";
+                    document.getElementById("arcgisStatus").className = "status-badge status-online";
                 })
                 .catch(function () {
                     // Not signed in yet
@@ -119,6 +185,7 @@
                     .then(function (credential) {
                         arcgisCredential = credential;
                         document.getElementById("arcgisStatus").textContent = "Signed in";
+                        document.getElementById("arcgisStatus").className = "status-badge status-online";
                         document.getElementById("signInButton").disabled = true;
                     })
                     .catch(function (error) {
@@ -175,9 +242,9 @@
                 let longitude = position.coords.longitude;
                 let accuracy = position.coords.accuracy;
 
-                document.getElementById("latitude").textContent = latitude;
-                document.getElementById("longitude").textContent = longitude;
-                document.getElementById("accuracy").textContent = accuracy;
+                document.getElementById("latitude").textContent = latitude.toFixed(6);
+                document.getElementById("longitude").textContent = longitude.toFixed(6);
+                document.getElementById("accuracy").textContent = Math.round(accuracy);
                 document.getElementById("time").textContent = new Date().toLocaleTimeString();
 
                 const point = {
