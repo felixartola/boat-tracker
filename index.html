@@ -45,50 +45,71 @@
                     </div>
                 </div>
 
-                <!-- Location Data Card -->
+                <!-- Location Data Dropdown Card -->
                 <div class="card data-card">
-                    <div class="card-header">Location Data</div>
-                    <div class="data-row">
-                        <span class="data-label">Latitude:</span>
-                        <span id="latitude" class="data-value">Not available</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Longitude:</span>
-                        <span id="longitude" class="data-value">Not available</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Accuracy:</span>
-                        <span id="accuracy" class="data-value">Not available</span>
-                        <span class="data-unit">m</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Time:</span>
-                        <span id="time" class="data-value">Not available</span>
+                    <button class="card-toggle" id="locationToggle">
+                        <div class="card-header">
+                            <span class="toggle-icon">▼</span>
+                            <span>Location Data</span>
+                        </div>
+                    </button>
+                    <div id="locationPanel" class="card-panel open">
+                        <div class="data-row">
+                            <span class="data-label">Latitude:</span>
+                            <span id="latitude" class="data-value">Not available</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Longitude:</span>
+                            <span id="longitude" class="data-value">Not available</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Accuracy:</span>
+                            <span id="accuracy" class="data-value">Not available</span>
+                            <span class="data-unit">m</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Time:</span>
+                            <span id="time" class="data-value">Not available</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Path Statistics Card -->
+                <!-- Path Statistics Dropdown Card -->
                 <div class="card stats-card">
-                    <div class="card-header">Path Statistics</div>
-                    <div class="data-row">
-                        <span class="data-label">Points Saved:</span>
-                        <span id="pointCount" class="data-value highlight">0</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Path Status:</span>
-                        <span id="pathStatus" class="data-value">No path yet</span>
+                    <button class="card-toggle" id="pathToggle">
+                        <div class="card-header">
+                            <span class="toggle-icon">▼</span>
+                            <span>Path Statistics</span>
+                        </div>
+                    </button>
+                    <div id="pathPanel" class="card-panel open">
+                        <div class="data-row">
+                            <span class="data-label">Points Saved:</span>
+                            <span id="pointCount" class="data-value highlight">0</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Path Status:</span>
+                            <span id="pathStatus" class="data-value">No path yet</span>
+                        </div>
                     </div>
                 </div>
+            </aside>
+        </div>
 
-                <!-- Debug Log Card -->
-                <div class="card debug-card">
-                    <div class="card-header">
-                        Debug Log
+        <!-- Debug Menu Dropdown -->
+        <div class="debug-menu">
+            <button id="debugToggle" class="btn btn-secondary debug-toggle">
+                <span class="debug-toggle-icon">▼</span> Debug Menu
+            </button>
+            <div id="debugPanel" class="debug-panel">
+                <div class="debug-panel-content">
+                    <div class="debug-panel-header">
+                        <span>Debug Log</span>
                         <button id="clearLogButton" class="btn btn-small btn-secondary">Clear</button>
                     </div>
                     <div id="debugLog" class="debug-log"></div>
                 </div>
-            </aside>
+            </div>
         </div>
     </div>
 
@@ -101,6 +122,9 @@
         let pathCoordinates = [];
         let pathObjectID = null;
         let pathCreationInProgress = false;
+        let debugPanelOpen = false;
+        let locationPanelOpen = true;
+        let pathPanelOpen = true;
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
@@ -125,6 +149,45 @@
             logDiv.appendChild(line);
             logDiv.scrollTop = logDiv.scrollHeight;
         }
+
+        function togglePanel(panelId, toggleId, stateVar) {
+            const panel = document.getElementById(panelId);
+            const toggle = document.getElementById(toggleId);
+            const icon = toggle.querySelector(".toggle-icon");
+            
+            const isOpen = panel.classList.contains("open");
+            if (isOpen) {
+                panel.classList.remove("open");
+                icon.textContent = "▶";
+            } else {
+                panel.classList.add("open");
+                icon.textContent = "▼";
+            }
+        }
+
+        function toggleDebugPanel() {
+            const panel = document.getElementById("debugPanel");
+            const toggle = document.getElementById("debugToggle");
+            debugPanelOpen = !debugPanelOpen;
+            
+            if (debugPanelOpen) {
+                panel.classList.add("open");
+                toggle.querySelector(".debug-toggle-icon").textContent = "▲";
+            } else {
+                panel.classList.remove("open");
+                toggle.querySelector(".debug-toggle-icon").textContent = "▼";
+            }
+        }
+
+        document.getElementById("locationToggle").addEventListener("click", function () {
+            togglePanel("locationPanel", "locationToggle");
+        });
+
+        document.getElementById("pathToggle").addEventListener("click", function () {
+            togglePanel("pathPanel", "pathToggle");
+        });
+
+        document.getElementById("debugToggle").addEventListener("click", toggleDebugPanel);
 
         document.getElementById("clearLogButton").addEventListener("click", function () {
             document.getElementById("debugLog").innerHTML = "";
