@@ -49,11 +49,11 @@
                 <div class="card data-card">
                     <button class="card-toggle" id="locationToggle">
                         <div class="card-header">
-                            <span class="toggle-icon">▼</span>
+                            <span class="toggle-icon">▶</span>
                             <span>Location Data</span>
                         </div>
                     </button>
-                    <div id="locationPanel" class="card-panel open">
+                    <div id="locationPanel" class="card-panel">
                         <div class="data-row">
                             <span class="data-label">Latitude:</span>
                             <span id="latitude" class="data-value">Not available</span>
@@ -78,11 +78,11 @@
                 <div class="card stats-card">
                     <button class="card-toggle" id="pathToggle">
                         <div class="card-header">
-                            <span class="toggle-icon">▼</span>
+                            <span class="toggle-icon">▶</span>
                             <span>Path Statistics</span>
                         </div>
                     </button>
-                    <div id="pathPanel" class="card-panel open">
+                    <div id="pathPanel" class="card-panel">
                         <div class="data-row">
                             <span class="data-label">Points Saved:</span>
                             <span id="pointCount" class="data-value highlight">0</span>
@@ -99,7 +99,7 @@
         <!-- Debug Menu Dropdown -->
         <div class="debug-menu">
             <button id="debugToggle" class="btn btn-secondary debug-toggle">
-                <span class="debug-toggle-icon">▼</span> Debug Menu
+                <span class="debug-toggle-icon">▶</span> Debug Menu
             </button>
             <div id="debugPanel" class="debug-panel">
                 <div class="debug-panel-content">
@@ -123,8 +123,6 @@
         let pathObjectID = null;
         let pathCreationInProgress = false;
         let debugPanelOpen = false;
-        let locationPanelOpen = true;
-        let pathPanelOpen = true;
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
@@ -150,11 +148,10 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        function togglePanel(panelId, toggleId, stateVar) {
+        function togglePanel(panelId, toggleId) {
             const panel = document.getElementById(panelId);
             const toggle = document.getElementById(toggleId);
             const icon = toggle.querySelector(".toggle-icon");
-            
             const isOpen = panel.classList.contains("open");
             if (isOpen) {
                 panel.classList.remove("open");
@@ -172,10 +169,10 @@
             
             if (debugPanelOpen) {
                 panel.classList.add("open");
-                toggle.querySelector(".debug-toggle-icon").textContent = "▲";
+                toggle.querySelector(".debug-toggle-icon").textContent = "▼";
             } else {
                 panel.classList.remove("open");
-                toggle.querySelector(".debug-toggle-icon").textContent = "▼";
+                toggle.querySelector(".debug-toggle-icon").textContent = "▶";
             }
         }
 
@@ -266,7 +263,6 @@
                     return;
                 }
 
-                // Check browser support before attempting geolocation.
                 if (!navigator.geolocation) {
                     document.getElementById("status").textContent =
                         "Geolocation is not supported by this browser.";
@@ -361,7 +357,6 @@
 
                     if (pathObjectID === null) {
 
-                        // Guard against duplicate path creation while one is already in progress.
                         if (pathCreationInProgress) {
                             logMessage("Path creation already in progress, skipping this fix.");
                             return;
