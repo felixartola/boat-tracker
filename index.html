@@ -36,7 +36,7 @@
         let tripID;
         let pathCoordinates = [];
         let pathObjectID = null;
-        let pathCreationInProgress = false; // guards against the race condition described below
+        let pathCreationInProgress = false;
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
@@ -128,7 +128,6 @@
 
             function startTracking() {
 
-                // Don't start tracking if not signed in.
                 if (!arcgisCredential) {
                     document.getElementById("status").textContent =
                         "Please sign in to ArcGIS before tracking.";
@@ -167,6 +166,8 @@
                 isTracking = true;
                 syncTrackingButton();
             }
+
+            if (!isTracking) return;
 
             function locationSuccess(position) {
 
@@ -308,6 +309,11 @@
                     "Location error: " + error.message;
                 logMessage("Geolocation error: " + error.message, true);
 
+                if (watchID !== null) {
+                    navigator.geolocation.clearWatch(watchID);
+                    watchID = null;
+                }
+                
                 isTracking = false;
                 syncTrackingButton();
             }
