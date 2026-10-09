@@ -25,7 +25,7 @@
     <p>Points saved: <span id="pointCount">0</span> | Path status: <span id="pathStatus">No path yet</span></p>
 
     <h3>Debug Log</h3>
-    <div id="debugLog" style="border:1px solid #ccc; padding:8px; height:200px; overflow-y:auto; font-family:monospace; font-size:12px; white-space:pre-wrap; background:#f8f8f8;"></div>
+    <div id="debugLog" class="debug-log"></div>
     <button id="clearLogButton">Clear Log</button>
 
     <script>
@@ -52,7 +52,7 @@
             const line = document.createElement("div");
             line.textContent = "[" + time + "] " + message;
             if (isError) {
-                line.style.color = "red";
+                line.classList.ass("log-error");
                 console.error(message);
             } else {
                 console.log(message);
@@ -168,6 +168,8 @@
             }
 
             function locationSuccess(position) {
+
+                if (!isTracking) return;
 
                 let latitude = position.coords.latitude;
                 let longitude = position.coords.longitude;
