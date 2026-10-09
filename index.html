@@ -11,6 +11,8 @@
     <button id="signInButton">Sign In to ArcGIS</button>
     <p>ArcGIS: <span id="arcgisStatus">Not signed in</span></p>
 
+    <div id="map"></div>
+    
     <button id="startButton">Start Tracking</button>
     <button id="stopButton">Stop Tracking</button>
 
@@ -36,9 +38,7 @@
 
         const portalURL = "https://www.arcgis.com";
         const clientID = "MpbbtiE8vXvj6by6";
-
-        // Writes to both the browser console and an on-screen panel, since
-        // iOS Safari has no easy way to view the console without a Mac.
+        
         function logMessage(message, isError) {
             const logDiv = document.getElementById("debugLog");
             const time = new Date().toLocaleTimeString();
@@ -58,6 +58,24 @@
             document.getElementById("debugLog").innerHTML = "";
         });
 
+        require([
+            "esri/WebMap",
+            "esri/views/MapView"
+        ], function(WebMap, MapView) {
+
+            const webmap = new WebMap({
+                portalItem: {
+                    id: "03cf7e425e824638b4cd7c932396cf84"
+                }
+            });
+
+            const view = new MapView({
+                container: "map",
+                map: webmap
+            });
+
+        });
+        
         require([
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
@@ -80,7 +98,6 @@
                 url: "https://services1.arcgis.com/ug7Y0GY6kYE0tf0p/arcgis/rest/services/boat_tracks/FeatureServer/0"
             });
 
-            // Check whether the user is already signed in
             esriId.checkSignInStatus(portalURL + "/sharing")
                 .then(function (credential) {
                     arcgisCredential = credential;
