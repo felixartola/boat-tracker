@@ -52,7 +52,7 @@
             const line = document.createElement("div");
             line.textContent = "[" + time + "] " + message;
             if (isError) {
-                line.classList.ass("log-error");
+                line.classList.add("log-error");
                 console.error(message);
             } else {
                 console.log(message);
