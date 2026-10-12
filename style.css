@@ -209,6 +209,14 @@ body {
   font-size: 0.72rem;
 }
 
+/* Center the authentication / tracking buttons within their card panels */
+.card-panel .btn {
+  display: block;
+  width: 80%;
+  margin: 12px auto;
+  min-width: 120px;
+}
+
 .status-row {
   display: flex;
   align-items: center;
