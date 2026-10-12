@@ -178,7 +178,7 @@ body {
   background: linear-gradient(135deg, var(--primary-color), #2563eb);
   color: white;
   padding: 11px 16px;
-  width: 100%;
+  width: 80%;
   font-size: 0.95rem;
 }
 
@@ -199,7 +199,7 @@ body {
 }
 
 .btn-lg {
-  width: 100%;
+  width: 80%;
   padding: 12px 18px;
   font-size: 1rem;
 }
@@ -209,7 +209,6 @@ body {
   font-size: 0.72rem;
 }
 
-/* Center the authentication / tracking buttons within their card panels */
 .card-panel .btn {
   display: block;
   width: 80%;
