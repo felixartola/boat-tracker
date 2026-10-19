@@ -49,6 +49,7 @@
                 <div class="card manual-card">
                     <div class="card-header">Manual Entry</div>
                     <button id="manualButton" class="btn btn-primary btn-lg">Start Manual Trip</button>
+                    <button id="undoButton" class="btn btn-secondary btn-lg" disabled>Undo Last Point</button>
                     <div class="status-row">
                         <span class="status-label">Status:</span>
                         <span id="manualStatus" class="status-text">Off</span>
@@ -133,6 +134,7 @@
         let pathObjectID = null;
         let pathCreationInProgress = false;
         let isManualMode = false;
+        let pointRecords = []; // one per saved point: { saved: Promise<OBJECTID or null> }
         let debugPanelOpen = false;
 
         const portalURL = "https://www.arcgis.com";
@@ -149,6 +151,12 @@
             button.textContent = isManualMode ? "Finish Manual Trip" : "Start Manual Trip";
             button.className = isManualMode ? "btn btn-danger btn-lg" : "btn btn-primary btn-lg";
             document.getElementById("map").classList.toggle("manual-mode", isManualMode);
+            syncUndoButton();
+        }
+
+        function syncUndoButton() {
+            document.getElementById("undoButton").disabled =
+                !isManualMode || pathCoordinates.length === 0;
         }
         
         function logMessage(message, isError) {
@@ -296,6 +304,7 @@
 
                 tripID = Date.now().toString();
                 pathCoordinates = [];
+                pointRecords = [];
                 pathObjectID = null;
                 pathCreationInProgress = false;
                 document.getElementById("status").textContent = "Tracking...";
@@ -366,23 +375,30 @@
 
                 logMessage("Attempting to save point #" + pathCoordinates.length + " (trip " + tripID + ")");
 
-                boatLayer.applyEdits({
+                const record = {};
+                pointRecords.push(record);
+
+                record.saved = boatLayer.applyEdits({
                     addFeatures: [boatPosition]
                 })
                     .then(function (result) {
                         if (result.addFeatureResults[0].error) {
                             logMessage("Point save REJECTED by server: " +
                                 JSON.stringify(result.addFeatureResults[0].error), true);
-                        } else {
-                            document.getElementById("pointCount").textContent = pathCoordinates.length;
-                            logMessage("Point saved to boat_gps layer, OBJECTID " +
-                                result.addFeatureResults[0].objectId);
-                            refreshMapLayer(boatLayer.url);
+                            return null;
                         }
+                        document.getElementById("pointCount").textContent = pathCoordinates.length;
+                        logMessage("Point saved to boat_gps layer, OBJECTID " +
+                            result.addFeatureResults[0].objectId);
+                        refreshMapLayer(boatLayer.url);
+                        return result.addFeatureResults[0].objectId;
                     })
                     .catch(function (error) {
                         logMessage("Point save request FAILED: " + error.message, true);
+                        return null;
                     });
+
+                syncUndoButton();
 
                 if (pathCoordinates.length >= 2) {
                     savePath();
@@ -437,8 +453,10 @@
                                 // Ignore the result if a new trip has started meanwhile
                                 if (sentTripID !== tripID) return;
                                 pathObjectID = addResult.objectId;
-                                // Points added while the path was being created
-                                if (pathCoordinates.length > pointsSent) {
+                                // Points added or undone while the path was being created
+                                if (pathCoordinates.length < 2) {
+                                    deletePath();
+                                } else if (pathCoordinates.length !== pointsSent) {
                                     savePath();
                                 }
                             }
@@ -508,6 +526,69 @@
                 syncTrackingButton();
             }
 
+            function deletePath() {
+                const objectId = pathObjectID;
+                pathObjectID = null;
+                pathLayer.applyEdits({
+                    deleteFeatures: [{ objectId: objectId }]
+                })
+                    .then(function (result) {
+                        const deleteResult = result.deleteFeatureResults[0];
+                        if (deleteResult.error) {
+                            logMessage("Path DELETE rejected by server: " +
+                                JSON.stringify(deleteResult.error), true);
+                        } else {
+                            logMessage("Path removed (fewer than 2 points left)");
+                            document.getElementById("pathStatus").textContent = "No path yet";
+                            refreshMapLayer(pathLayer.url);
+                        }
+                    })
+                    .catch(function (error) {
+                        logMessage("Path DELETE request failed: " + error.message, true);
+                    });
+            }
+
+            // Remove the most recent point of the manual trip, from the map and from ArcGIS
+            function undoLastPoint() {
+
+                if (!isManualMode || pathCoordinates.length === 0) return;
+
+                const record = pointRecords.pop();
+                pathCoordinates.pop();
+                document.getElementById("pointCount").textContent = pathCoordinates.length;
+                document.getElementById("manualStatus").textContent =
+                    "Point undone (" + pathCoordinates.length + " left)";
+                syncUndoButton();
+
+                // Wait for the point's save to finish so we know its OBJECTID
+                record.saved.then(function (objectId) {
+                    if (objectId === null) return; // never saved, nothing to delete
+                    return boatLayer.applyEdits({
+                        deleteFeatures: [{ objectId: objectId }]
+                    })
+                        .then(function (result) {
+                            const deleteResult = result.deleteFeatureResults[0];
+                            if (deleteResult.error) {
+                                logMessage("Point DELETE rejected by server: " +
+                                    JSON.stringify(deleteResult.error), true);
+                            } else {
+                                logMessage("Point removed, OBJECTID " + objectId);
+                                refreshMapLayer(boatLayer.url);
+                            }
+                        });
+                }).catch(function (error) {
+                    logMessage("Point DELETE request failed: " + error.message, true);
+                });
+
+                // Shorten the trip's line to match
+                if (pathCoordinates.length >= 2) {
+                    savePath();
+                } else if (pathObjectID !== null) {
+                    deletePath();
+                }
+                // If the line is still being created, its completion handler cleans up
+            }
+
             function startManualTrip() {
 
                 if (!arcgisCredential) {
@@ -526,6 +607,7 @@
                 // The "manual_" prefix marks these points as manually entered.
                 tripID = "manual_" + Date.now();
                 pathCoordinates = [];
+                pointRecords = [];
                 pathObjectID = null;
                 pathCreationInProgress = false;
                 document.getElementById("pointCount").textContent = "0";
@@ -557,6 +639,8 @@
                 document.getElementById("manualStatus").textContent =
                     pathCoordinates.length + " point(s) added";
             });
+
+            document.getElementById("undoButton").addEventListener("click", undoLastPoint);
 
             document.getElementById("manualButton").addEventListener("click", function () {
                 if (isManualMode) {

@@ -427,3 +427,7 @@ body {
 .map.manual-mode * {
   cursor: crosshair !important;
 }
+
+.manual-card .btn + .btn {
+  margin-top: 8px;
+}
