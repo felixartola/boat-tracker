@@ -8,8 +8,7 @@
   hosted feature layer and trip lines to `boat_tracks`. The map is an ArcGIS
   web map. Users sign in with ArcGIS OAuth.
 - The site is plain `index.html` + `style.css` with no build step. The user
-  copies files from GitHub into a local editor and runs them on a local server,
-  so remind them to hard refresh (Ctrl+F5) after CSS changes.
+  copies files from GitHub into a local editor and runs them on a local server.
 
 ## Working rule: flag fundamental changes before making them
 Before making any change to how the site fundamentally works, stop and tell
