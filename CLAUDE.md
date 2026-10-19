@@ -10,6 +10,9 @@
 - The site is plain `index.html` + `style.css` with no build step. The user
   copies files from GitHub into a local editor and runs them on a local server.
 
+## Code style
+Do not add comments to the code (HTML, CSS or JavaScript) in any change.
+
 ## Working rule: flag fundamental changes before making them
 Before making any change to how the site fundamentally works, stop and tell
 the user first, so they can get approval from their internship director.
