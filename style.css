@@ -421,3 +421,9 @@ body {
     padding: 14px;
   }
 }
+
+/* Crosshair cursor while placing manual points */
+.map.manual-mode,
+.map.manual-mode * {
+  cursor: crosshair !important;
+}

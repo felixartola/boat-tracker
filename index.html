@@ -45,6 +45,16 @@
                     </div>
                 </div>
 
+                <!-- Manual Entry Card -->
+                <div class="card manual-card">
+                    <div class="card-header">Manual Entry</div>
+                    <button id="manualButton" class="btn btn-primary btn-lg">Start Manual Trip</button>
+                    <div class="status-row">
+                        <span class="status-label">Status:</span>
+                        <span id="manualStatus" class="status-text">Off</span>
+                    </div>
+                </div>
+
                 <!-- Location Data Dropdown Card -->
                 <div class="card data-card">
                     <button class="card-toggle" id="locationToggle">
@@ -122,6 +132,7 @@
         let pathCoordinates = [];
         let pathObjectID = null;
         let pathCreationInProgress = false;
+        let isManualMode = false;
         let debugPanelOpen = false;
 
         const portalURL = "https://www.arcgis.com";
@@ -131,6 +142,13 @@
             const button = document.getElementById("trackingButton");
             button.textContent = isTracking ? "Stop Tracking" : "Start Tracking";
             button.className = isTracking ? "btn btn-danger btn-lg" : "btn btn-success btn-lg";
+        }
+
+        function syncManualButton() {
+            const button = document.getElementById("manualButton");
+            button.textContent = isManualMode ? "Finish Manual Trip" : "Start Manual Trip";
+            button.className = isManualMode ? "btn btn-danger btn-lg" : "btn btn-primary btn-lg";
+            document.getElementById("map").classList.toggle("manual-mode", isManualMode);
         }
         
         function logMessage(message, isError) {
@@ -192,8 +210,12 @@
 
         require([
             "esri/WebMap",
-            "esri/views/MapView"
-        ], function(WebMap, MapView) {
+            "esri/views/MapView",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic"
+        ], function (WebMap, MapView, OAuthInfo, esriId, FeatureLayer, Graphic) {
 
             const webmap = new WebMap({
                 portalItem: {
@@ -205,15 +227,6 @@
                 container: "map",
                 map: webmap
             });
-
-        });
-        
-        require([
-            "esri/identity/OAuthInfo",
-            "esri/identity/IdentityManager",
-            "esri/layers/FeatureLayer",
-            "esri/Graphic"
-        ], function (OAuthInfo, esriId, FeatureLayer, Graphic) {
 
             const info = new OAuthInfo({
                 appId: clientID,
@@ -255,6 +268,12 @@
 
             function startTracking() {
 
+                if (isManualMode) {
+                    document.getElementById("status").textContent =
+                        "Finish the manual trip before tracking.";
+                    return;
+                }
+
                 if (!arcgisCredential) {
                     document.getElementById("status").textContent =
                         "Please sign in to ArcGIS before tracking.";
@@ -293,30 +312,49 @@
                 syncTrackingButton();
             }
 
+            // Re-draw a web map layer so newly saved features show right away
+            function refreshMapLayer(serviceUrl) {
+                webmap.allLayers.forEach(function (layer) {
+                    if (layer.url && serviceUrl.indexOf(layer.url) === 0 &&
+                        typeof layer.refresh === "function") {
+                        layer.refresh();
+                    }
+                });
+            }
+
+            function showLocation(latitude, longitude, accuracy) {
+                document.getElementById("latitude").textContent = latitude.toFixed(6);
+                document.getElementById("longitude").textContent = longitude.toFixed(6);
+                document.getElementById("accuracy").textContent =
+                    accuracy === null ? "Manual" : Math.round(accuracy);
+                document.getElementById("time").textContent = new Date().toLocaleTimeString();
+            }
+
             function locationSuccess(position) {
 
                 if (!isTracking) return;
 
-                let latitude = position.coords.latitude;
-                let longitude = position.coords.longitude;
-                let accuracy = position.coords.accuracy;
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
 
-                document.getElementById("latitude").textContent = latitude.toFixed(6);
-                document.getElementById("longitude").textContent = longitude.toFixed(6);
-                document.getElementById("accuracy").textContent = Math.round(accuracy);
-                document.getElementById("time").textContent = new Date().toLocaleTimeString();
+                showLocation(latitude, longitude, accuracy);
+                addPointToTrip(longitude, latitude, accuracy);
+            }
 
-                const point = {
-                    type: "point",
-                    longitude: longitude,
-                    latitude: latitude,
-                    spatialReference: {
-                        wkid: 4326
-                    }
-                };
+            // Save one point to the current trip and extend the trip's path.
+            // accuracy is null for manually entered points.
+            function addPointToTrip(longitude, latitude, accuracy) {
 
                 const boatPosition = new Graphic({
-                    geometry: point,
+                    geometry: {
+                        type: "point",
+                        longitude: longitude,
+                        latitude: latitude,
+                        spatialReference: {
+                            wkid: 4326
+                        }
+                    },
                     attributes: {
                         esrignss_fixdatetime: Date.now(),
                         esrignss_h_rms: accuracy,
@@ -339,6 +377,7 @@
                             document.getElementById("pointCount").textContent = pathCoordinates.length;
                             logMessage("Point saved to boat_gps layer, OBJECTID " +
                                 result.addFeatureResults[0].objectId);
+                            refreshMapLayer(boatLayer.url);
                         }
                     })
                     .catch(function (error) {
@@ -346,86 +385,100 @@
                     });
 
                 if (pathCoordinates.length >= 2) {
+                    savePath();
+                }
+            }
 
-                    const path = {
-                        type: "polyline",
-                        paths: [pathCoordinates],
-                        spatialReference: {
-                            wkid: 4326
-                        }
-                    };
+            function savePath() {
 
-                    if (pathObjectID === null) {
-
-                        if (pathCreationInProgress) {
-                            logMessage("Path creation already in progress, skipping this fix.");
-                            return;
-                        }
-                        pathCreationInProgress = true;
-
-                        const newPath = new Graphic({
-                            geometry: path,
-                            attributes: {
-                                trip_id: tripID
-                            }
-                        });
-
-                        logMessage("Attempting to CREATE path feature (trip " + tripID + ")");
-
-                        pathLayer.applyEdits({
-                            addFeatures: [newPath]
-                        })
-                            .then(function (result) {
-                                pathCreationInProgress = false;
-                                const addResult = result.addFeatureResults[0];
-                                if (addResult.error) {
-                                    logMessage("Path CREATE rejected by server: " +
-                                        JSON.stringify(addResult.error), true);
-                                    document.getElementById("pathStatus").textContent = "Create failed";
-                                } else {
-                                    pathObjectID = addResult.objectId;
-                                    logMessage("Path created, OBJECTID " + pathObjectID);
-                                    document.getElementById("pathStatus").textContent =
-                                        "Created (OBJECTID " + pathObjectID + ")";
-                                }
-                            })
-                            .catch(function (error) {
-                                pathCreationInProgress = false;
-                                logMessage("Path CREATE request failed: " + error.message, true);
-                                document.getElementById("pathStatus").textContent = "Create failed";
-                            });
-
-                    } else {
-
-                        const updatedPath = new Graphic({
-                            geometry: path,
-                            attributes: {
-                                OBJECTID: pathObjectID,
-                                trip_id: tripID
-                            }
-                        });
-
-                        pathLayer.applyEdits({
-                            updateFeatures: [updatedPath]
-                        })
-                            .then(function (result) {
-                                const updateResult = result.updateFeatureResults[0];
-                                if (updateResult.error) {
-                                    logMessage("Path UPDATE rejected by server: " +
-                                        JSON.stringify(updateResult.error), true);
-                                    document.getElementById("pathStatus").textContent = "Update failed";
-                                } else {
-                                    logMessage("Path updated, OBJECTID " + pathObjectID +
-                                        " (" + pathCoordinates.length + " points)");
-                                    document.getElementById("pathStatus").textContent =
-                                        "Updated (" + pathCoordinates.length + " points)";
-                                }
-                            })
-                            .catch(function (error) {
-                                logMessage("Path UPDATE request failed: " + error.message, true);
-                                document.getElementById("pathStatus").textContent = "Update failed";
-                            });
+                const pointsSent = pathCoordinates.length;
+                const sentTripID = tripID;
+                const path = {
+                    type: "polyline",
+                    paths: [pathCoordinates.slice()],
+                    spatialReference: {
+                        wkid: 4326
                     }
+                };
+
+                if (pathObjectID === null) {
+
+                    if (pathCreationInProgress) {
+                        // The path will be updated with this point once creation finishes
+                        logMessage("Path creation already in progress, point queued.");
+                        return;
+                    }
+                    pathCreationInProgress = true;
+
+                    const newPath = new Graphic({
+                        geometry: path,
+                        attributes: {
+                            trip_id: sentTripID
+                        }
+                    });
+
+                    logMessage("Attempting to CREATE path feature (trip " + sentTripID + ")");
+
+                    pathLayer.applyEdits({
+                        addFeatures: [newPath]
+                    })
+                        .then(function (result) {
+                            pathCreationInProgress = false;
+                            const addResult = result.addFeatureResults[0];
+                            if (addResult.error) {
+                                logMessage("Path CREATE rejected by server: " +
+                                    JSON.stringify(addResult.error), true);
+                                document.getElementById("pathStatus").textContent = "Create failed";
+                            } else {
+                                logMessage("Path created, OBJECTID " + addResult.objectId);
+                                document.getElementById("pathStatus").textContent =
+                                    "Created (OBJECTID " + addResult.objectId + ")";
+                                refreshMapLayer(pathLayer.url);
+                                // Ignore the result if a new trip has started meanwhile
+                                if (sentTripID !== tripID) return;
+                                pathObjectID = addResult.objectId;
+                                // Points added while the path was being created
+                                if (pathCoordinates.length > pointsSent) {
+                                    savePath();
+                                }
+                            }
+                        })
+                        .catch(function (error) {
+                            pathCreationInProgress = false;
+                            logMessage("Path CREATE request failed: " + error.message, true);
+                            document.getElementById("pathStatus").textContent = "Create failed";
+                        });
+
+                } else {
+
+                    const updatedPath = new Graphic({
+                        geometry: path,
+                        attributes: {
+                            OBJECTID: pathObjectID,
+                            trip_id: sentTripID
+                        }
+                    });
+
+                    pathLayer.applyEdits({
+                        updateFeatures: [updatedPath]
+                    })
+                        .then(function (result) {
+                            const updateResult = result.updateFeatureResults[0];
+                            if (updateResult.error) {
+                                logMessage("Path UPDATE rejected by server: " +
+                                    JSON.stringify(updateResult.error), true);
+                                document.getElementById("pathStatus").textContent = "Update failed";
+                            } else {
+                                logMessage("Path updated (" + pointsSent + " points)");
+                                document.getElementById("pathStatus").textContent =
+                                    "Updated (" + pointsSent + " points)";
+                                refreshMapLayer(pathLayer.url);
+                            }
+                        })
+                        .catch(function (error) {
+                            logMessage("Path UPDATE request failed: " + error.message, true);
+                            document.getElementById("pathStatus").textContent = "Update failed";
+                        });
                 }
             }
 
@@ -454,6 +507,64 @@
                 isTracking = false;
                 syncTrackingButton();
             }
+
+            function startManualTrip() {
+
+                if (!arcgisCredential) {
+                    document.getElementById("manualStatus").textContent =
+                        "Please sign in to ArcGIS first.";
+                    return;
+                }
+
+                if (isTracking) {
+                    document.getElementById("manualStatus").textContent =
+                        "Stop tracking before adding manual points.";
+                    return;
+                }
+
+                // Unique per trip so manual points still form their own path.
+                // The "manual_" prefix marks these points as manually entered.
+                tripID = "manual_" + Date.now();
+                pathCoordinates = [];
+                pathObjectID = null;
+                pathCreationInProgress = false;
+                document.getElementById("pointCount").textContent = "0";
+                document.getElementById("pathStatus").textContent = "No path yet";
+                document.getElementById("manualStatus").textContent = "Click the map to add points";
+                logMessage("Manual trip started (trip " + tripID + ")");
+
+                isManualMode = true;
+                syncManualButton();
+            }
+
+            function finishManualTrip() {
+                isManualMode = false;
+                document.getElementById("manualStatus").textContent =
+                    "Finished (" + pathCoordinates.length + " points)";
+                logMessage("Manual trip finished (trip " + tripID + ")");
+                syncManualButton();
+            }
+
+            view.on("click", function (event) {
+                if (!isManualMode) return;
+                event.stopPropagation(); // don't open a popup while placing points
+
+                const latitude = event.mapPoint.latitude;
+                const longitude = event.mapPoint.longitude;
+
+                showLocation(latitude, longitude, null);
+                addPointToTrip(longitude, latitude, null);
+                document.getElementById("manualStatus").textContent =
+                    pathCoordinates.length + " point(s) added";
+            });
+
+            document.getElementById("manualButton").addEventListener("click", function () {
+                if (isManualMode) {
+                    finishManualTrip();
+                } else {
+                    startManualTrip();
+                }
+            });
 
             syncTrackingButton();
 
