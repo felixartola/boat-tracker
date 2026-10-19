@@ -10,22 +10,17 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="header">
             <h1>Boat GPS Tracker</h1>
             <p class="subtitle">Real-time location tracking and path visualization</p>
         </header>
 
-        <!-- Main Content -->
         <div class="main-content">
-            <!-- Map Section -->
             <div class="map-section">
                 <div id="map" class="map"></div>
             </div>
 
-            <!-- Sidebar -->
             <aside class="sidebar">
-                <!-- Authentication Card -->
                 <div class="card auth-card">
                     <div class="card-header">Authentication</div>
                     <button id="signInButton" class="btn btn-primary">Sign In to ArcGIS</button>
@@ -35,7 +30,6 @@
                     </div>
                 </div>
 
-                <!-- Tracking Control Card -->
                 <div class="card control-card">
                     <div class="card-header">Tracking Control</div>
                     <button id="trackingButton" class="btn btn-success btn-lg">Start Tracking</button>
@@ -45,7 +39,6 @@
                     </div>
                 </div>
 
-                <!-- Manual Entry Card -->
                 <div class="card manual-card">
                     <div class="card-header">Manual Entry</div>
                     <button id="manualButton" class="btn btn-primary btn-lg">Start Manual Trip</button>
@@ -56,7 +49,6 @@
                     </div>
                 </div>
 
-                <!-- Location Data Dropdown Card -->
                 <div class="card data-card">
                     <button class="card-toggle" id="locationToggle">
                         <div class="card-header">
@@ -85,7 +77,6 @@
                     </div>
                 </div>
 
-                <!-- Path Statistics Dropdown Card -->
                 <div class="card stats-card">
                     <button class="card-toggle" id="pathToggle">
                         <div class="card-header">
@@ -107,7 +98,6 @@
             </aside>
         </div>
 
-        <!-- Debug Menu Dropdown -->
         <div class="debug-menu">
             <button id="debugToggle" class="btn btn-secondary debug-toggle">
                 <span class="debug-toggle-icon">▶</span> Debug Menu
@@ -134,7 +124,7 @@
         let pathObjectID = null;
         let pathCreationInProgress = false;
         let isManualMode = false;
-        let pointRecords = []; // one per saved point: { saved: Promise<OBJECTID or null> }
+        let pointRecords = [];
         let debugPanelOpen = false;
 
         const portalURL = "https://www.arcgis.com";
@@ -258,7 +248,6 @@
                     document.getElementById("arcgisStatus").className = "status-badge status-online";
                 })
                 .catch(function () {
-                    // Not signed in yet
                 });
 
             document.getElementById("signInButton").addEventListener("click", function () {
@@ -321,7 +310,6 @@
                 syncTrackingButton();
             }
 
-            // Re-draw a web map layer so newly saved features show right away
             function refreshMapLayer(serviceUrl) {
                 webmap.allLayers.forEach(function (layer) {
                     if (layer.url && serviceUrl.indexOf(layer.url) === 0 &&
@@ -351,8 +339,6 @@
                 addPointToTrip(longitude, latitude, accuracy);
             }
 
-            // Save one point to the current trip and extend the trip's path.
-            // accuracy is null for manually entered points.
             function addPointToTrip(longitude, latitude, accuracy) {
 
                 const boatPosition = new Graphic({
@@ -420,7 +406,6 @@
                 if (pathObjectID === null) {
 
                     if (pathCreationInProgress) {
-                        // The path will be updated with this point once creation finishes
                         logMessage("Path creation already in progress, point queued.");
                         return;
                     }
@@ -450,10 +435,8 @@
                                 document.getElementById("pathStatus").textContent =
                                     "Created (OBJECTID " + addResult.objectId + ")";
                                 refreshMapLayer(pathLayer.url);
-                                // Ignore the result if a new trip has started meanwhile
                                 if (sentTripID !== tripID) return;
                                 pathObjectID = addResult.objectId;
-                                // Points added or undone while the path was being created
                                 if (pathCoordinates.length < 2) {
                                     deletePath();
                                 } else if (pathCoordinates.length !== pointsSent) {
@@ -548,7 +531,6 @@
                     });
             }
 
-            // Remove the most recent point of the manual trip, from the map and from ArcGIS
             function undoLastPoint() {
 
                 if (!isManualMode || pathCoordinates.length === 0) return;
@@ -560,9 +542,8 @@
                     "Point undone (" + pathCoordinates.length + " left)";
                 syncUndoButton();
 
-                // Wait for the point's save to finish so we know its OBJECTID
                 record.saved.then(function (objectId) {
-                    if (objectId === null) return; // never saved, nothing to delete
+                    if (objectId === null) return;
                     return boatLayer.applyEdits({
                         deleteFeatures: [{ objectId: objectId }]
                     })
@@ -580,13 +561,11 @@
                     logMessage("Point DELETE request failed: " + error.message, true);
                 });
 
-                // Shorten the trip's line to match
                 if (pathCoordinates.length >= 2) {
                     savePath();
                 } else if (pathObjectID !== null) {
                     deletePath();
                 }
-                // If the line is still being created, its completion handler cleans up
             }
 
             function startManualTrip() {
@@ -603,8 +582,6 @@
                     return;
                 }
 
-                // Unique per trip so manual points still form their own path.
-                // The "manual_" prefix marks these points as manually entered.
                 tripID = "manual_" + Date.now();
                 pathCoordinates = [];
                 pointRecords = [];
@@ -629,7 +606,7 @@
 
             view.on("click", function (event) {
                 if (!isManualMode) return;
-                event.stopPropagation(); // don't open a popup while placing points
+                event.stopPropagation();
 
                 const latitude = event.mapPoint.latitude;
                 const longitude = event.mapPoint.longitude;

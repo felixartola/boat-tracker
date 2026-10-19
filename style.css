@@ -1,4 +1,3 @@
-/* Global Styles */
 * {
   margin: 0;
   padding: 0;
@@ -72,7 +71,6 @@ body {
   flex: 1.6;
   min-width: 0;
   padding: 18px;
-  /* Keep the map in view while the sidebar scrolls with the page */
   position: sticky;
   top: 0;
   height: 100vh;
@@ -106,7 +104,6 @@ body {
   box-shadow: var(--shadow);
   backdrop-filter: blur(2px);
   overflow: hidden;
-  /* Don't let cards get squeezed together when panels open */
   flex-shrink: 0;
 }
 
@@ -320,7 +317,6 @@ body {
   font-weight: 700;
 }
 
-/* Debug Menu Styles */
 .debug-menu {
   padding: 18px;
   background: rgba(255,255,255,0.35);
@@ -422,7 +418,6 @@ body {
   }
 }
 
-/* Crosshair cursor while placing manual points */
 .map.manual-mode,
 .map.manual-mode * {
   cursor: crosshair !important;
