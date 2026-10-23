@@ -7,7 +7,7 @@
 - Data is stored and displayed in ArcGIS Online: points go to the `boat_gps`
   hosted feature layer and trip lines to `boat_tracks`. The map is an ArcGIS
   web map. Users sign in with ArcGIS OAuth.
-- The site is plain `index.html` + `style.css` with no build step. The user
+- The site is plain `index.html` + `style.css` + `app.js` with no build step. The user
   copies files from GitHub into a local editor and runs them on a local server.
 
 ## Code style
