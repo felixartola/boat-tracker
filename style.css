@@ -1,4 +1,3 @@
-/* Global Styles */
 * {
   margin: 0;
   padding: 0;
@@ -21,8 +20,12 @@
   --radius: 12px;
 }
 
-html, body {
+html {
   height: 100%;
+}
+
+body {
+  min-height: 100%;
 }
 
 body {
@@ -35,8 +38,7 @@ body {
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 .header {
@@ -62,13 +64,16 @@ body {
 .main-content {
   display: flex;
   flex: 1;
-  min-height: 0;
+  align-items: flex-start;
 }
 
 .map-section {
   flex: 1.6;
   min-width: 0;
   padding: 18px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
 }
 
 .map {
@@ -88,7 +93,7 @@ body {
   gap: 16px;
   padding: 18px 18px 18px 0;
   background: rgba(255,255,255,0.35);
-  overflow-y: auto;
+  align-self: stretch;
 }
 
 .card {
@@ -99,6 +104,7 @@ body {
   box-shadow: var(--shadow);
   backdrop-filter: blur(2px);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .card-header {
@@ -311,7 +317,6 @@ body {
   font-weight: 700;
 }
 
-/* Debug Menu Styles */
 .debug-menu {
   padding: 18px;
   background: rgba(255,255,255,0.35);
@@ -382,6 +387,9 @@ body {
   .map-section {
     padding: 18px 18px 0 18px;
     flex: 1 1 auto;
+    position: static;
+    width: 100%;
+    height: 60vh;
   }
 
   .sidebar {
@@ -390,10 +398,6 @@ body {
     padding: 18px;
   }
 
-  .container {
-    height: auto;
-    min-height: 100vh;
-  }
 }
 
 @media (max-width: 600px) {
@@ -412,4 +416,13 @@ body {
   .debug-panel-content {
     padding: 14px;
   }
+}
+
+.map.manual-mode,
+.map.manual-mode * {
+  cursor: crosshair !important;
+}
+
+.manual-card .btn + .btn {
+  margin-top: 8px;
 }
