@@ -426,3 +426,7 @@ body {
 .manual-card .btn + .btn {
   margin-top: 8px;
 }
+
+.data-value.data-warning {
+  color: var(--danger-color);
+}

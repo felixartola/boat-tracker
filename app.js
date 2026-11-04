@@ -3,8 +3,6 @@ let isTracking = false;
 let arcgisCredential;
 let tripID;
 let pathCoordinates = [];
-let pathObjectID = null;
-let pathCreationInProgress = false;
 let isManualMode = false;
 let showHistory = false;
 let pointRecords = [];
@@ -175,6 +173,7 @@ require([
             arcgisCredential = credential;
             document.getElementById("arcgisStatus").textContent = "Signed in";
             document.getElementById("arcgisStatus").className = "status-badge status-online";
+            flushAll();
         })
         .catch(function () {
         });
@@ -186,6 +185,7 @@ require([
                 document.getElementById("arcgisStatus").textContent = "Signed in";
                 document.getElementById("arcgisStatus").className = "status-badge status-online";
                 document.getElementById("signInButton").disabled = true;
+                flushAll();
             })
             .catch(function (error) {
                 logMessage("Sign-in failed: " + error.message, true);
@@ -224,8 +224,8 @@ require([
         applyTripFilter();
         pathCoordinates = [];
         pointRecords = [];
-        pathObjectID = null;
-        pathCreationInProgress = false;
+        document.getElementById("pointCount").textContent = "0";
+        document.getElementById("pathStatus").textContent = "No path yet";
         document.getElementById("status").textContent = "Tracking...";
 
         watchID = navigator.geolocation.watchPosition(
@@ -269,149 +269,282 @@ require([
         addPointToTrip(longitude, latitude, accuracy);
     }
 
-    function addPointToTrip(longitude, latitude, accuracy) {
+    const pendingKey = "boatTrackerPending";
+    let pendingPoints = [];
+    let pendingDeletes = [];
+    let tripPaths = {};
+    let nextPointNumber = 0;
+    const sendingPointIds = new Set();
+    const undoneWhileSending = new Set();
+    const uploadedObjectIds = {};
+    const pathsInFlight = new Set();
+    let pointsFlushing = false;
+    let connectionOk = true;
 
-        const boatPosition = new Graphic({
+    try {
+        const stored = JSON.parse(localStorage.getItem(pendingKey) || "null");
+        if (stored) {
+            pendingPoints = stored.points || [];
+            pendingDeletes = stored.deletes || [];
+            tripPaths = stored.paths || {};
+        }
+    } catch (error) {
+        logMessage("Could not read saved upload queue: " + error.message, true);
+    }
+
+    function savePending() {
+        try {
+            localStorage.setItem(pendingKey, JSON.stringify({
+                points: pendingPoints,
+                deletes: pendingDeletes,
+                paths: tripPaths
+            }));
+        } catch (error) {
+            logMessage("Could not save upload queue: " + error.message, true);
+        }
+    }
+
+    function updatePendingDisplay() {
+        const waiting = pendingPoints.length + pendingDeletes.length;
+        document.getElementById("pendingCount").textContent =
+            waiting === 0 ? "0" : waiting + (connectionOk ? "" : " (offline)");
+        document.getElementById("pendingCount").classList.toggle("data-warning", waiting > 0 && !connectionOk);
+    }
+
+    function markConnectionLost(error) {
+        if (connectionOk) {
+            logMessage("Connection problem, will keep retrying: " + error.message, true);
+        }
+        connectionOk = false;
+    }
+
+    function markConnectionRestored() {
+        if (!connectionOk) {
+            logMessage("Connection restored");
+        }
+        connectionOk = true;
+    }
+
+    function getTripPath(id) {
+        if (!tripPaths[id]) {
+            tripPaths[id] = { coords: [], objectId: null, dirty: false, version: 0 };
+        }
+        return tripPaths[id];
+    }
+
+    function setCurrentPath(coords) {
+        const path = getTripPath(tripID);
+        path.coords = coords.slice();
+        path.dirty = true;
+        path.version += 1;
+    }
+
+    function removeFromList(list, value) {
+        const index = list.indexOf(value);
+        if (index !== -1) list.splice(index, 1);
+    }
+
+    function pointToGraphic(item) {
+        return new Graphic({
             geometry: {
                 type: "point",
-                longitude: longitude,
-                latitude: latitude,
+                longitude: item.longitude,
+                latitude: item.latitude,
                 spatialReference: {
                     wkid: 4326
                 }
             },
             attributes: {
-                esrignss_fixdatetime: Date.now(),
-                esrignss_h_rms: accuracy,
-                trip_id: tripID
+                esrignss_fixdatetime: item.time,
+                esrignss_h_rms: item.accuracy,
+                trip_id: item.tripID
             }
         });
-
-        pathCoordinates.push([longitude, latitude]);
-
-        logMessage("Attempting to save point #" + pathCoordinates.length + " (trip " + tripID + ")");
-
-        const record = {};
-        pointRecords.push(record);
-
-        record.saved = boatLayer.applyEdits({
-            addFeatures: [boatPosition]
-        })
-            .then(function (result) {
-                if (result.addFeatureResults[0].error) {
-                    logMessage("Point save REJECTED by server: " +
-                        JSON.stringify(result.addFeatureResults[0].error), true);
-                    return null;
-                }
-                document.getElementById("pointCount").textContent = pathCoordinates.length;
-                logMessage("Point saved to boat_gps layer, OBJECTID " +
-                    result.addFeatureResults[0].objectId);
-                refreshMapLayer(boatLayer.url);
-                return result.addFeatureResults[0].objectId;
-            })
-            .catch(function (error) {
-                logMessage("Point save request FAILED: " + error.message, true);
-                return null;
-            });
-
-        syncUndoButton();
-
-        if (pathCoordinates.length >= 2) {
-            savePath();
-        }
     }
 
-    function savePath() {
+    function addPointToTrip(longitude, latitude, accuracy) {
 
-        const pointsSent = pathCoordinates.length;
-        const sentTripID = tripID;
-        const path = {
-            type: "polyline",
-            paths: [pathCoordinates.slice()],
-            spatialReference: {
-                wkid: 4326
-            }
+        nextPointNumber += 1;
+        const item = {
+            id: tripID + "_" + Date.now() + "_" + nextPointNumber,
+            tripID: tripID,
+            longitude: longitude,
+            latitude: latitude,
+            accuracy: accuracy,
+            time: Date.now()
         };
 
-        if (pathObjectID === null) {
+        pendingPoints.push(item);
+        pointRecords.push(item.id);
+        pathCoordinates.push([longitude, latitude]);
+        setCurrentPath(pathCoordinates);
 
-            if (pathCreationInProgress) {
-                logMessage("Path creation already in progress, point queued.");
+        document.getElementById("pointCount").textContent = pathCoordinates.length;
+        logMessage("Point #" + pathCoordinates.length + " recorded (trip " + tripID + ")");
+
+        savePending();
+        updatePendingDisplay();
+        syncUndoButton();
+        flushAll();
+    }
+
+    function flushAll() {
+        flushPoints();
+        flushPaths();
+    }
+
+    function flushPoints() {
+
+        if (pointsFlushing || !arcgisCredential) return;
+        if (pendingPoints.length === 0 && pendingDeletes.length === 0) return;
+
+        pointsFlushing = true;
+        const batch = pendingPoints.slice(0, 100);
+        const deletes = pendingDeletes.slice();
+        let succeeded = false;
+        batch.forEach(function (item) { sendingPointIds.add(item.id); });
+
+        const addStep = batch.length === 0 ? Promise.resolve() :
+            boatLayer.applyEdits({
+                addFeatures: batch.map(pointToGraphic)
+            }).then(function (result) {
+                let saved = 0;
+                result.addFeatureResults.forEach(function (addResult, index) {
+                    const item = batch[index];
+                    removeFromList(pendingPoints, item);
+                    if (addResult.error) {
+                        logMessage("Point save REJECTED by server: " +
+                            JSON.stringify(addResult.error), true);
+                        undoneWhileSending.delete(item.id);
+                        return;
+                    }
+                    saved += 1;
+                    uploadedObjectIds[item.id] = addResult.objectId;
+                    if (undoneWhileSending.has(item.id)) {
+                        undoneWhileSending.delete(item.id);
+                        pendingDeletes.push(addResult.objectId);
+                    }
+                });
+                if (saved > 0) {
+                    logMessage("Uploaded " + saved + " point(s) to boat_gps");
+                    refreshMapLayer(boatLayer.url);
+                }
+            });
+
+        addStep.then(function () {
+            if (deletes.length === 0) return;
+            return boatLayer.applyEdits({
+                deleteFeatures: deletes.map(function (objectId) {
+                    return { objectId: objectId };
+                })
+            }).then(function (result) {
+                result.deleteFeatureResults.forEach(function (deleteResult, index) {
+                    removeFromList(pendingDeletes, deletes[index]);
+                    if (deleteResult.error) {
+                        logMessage("Point DELETE rejected by server: " +
+                            JSON.stringify(deleteResult.error), true);
+                    } else {
+                        logMessage("Point removed, OBJECTID " + deletes[index]);
+                    }
+                });
+                refreshMapLayer(boatLayer.url);
+            });
+        }).then(function () {
+            succeeded = true;
+            markConnectionRestored();
+        }).catch(function (error) {
+            markConnectionLost(error);
+        }).then(function () {
+            pointsFlushing = false;
+            batch.forEach(function (item) { sendingPointIds.delete(item.id); });
+            savePending();
+            updatePendingDisplay();
+            if (succeeded) flushPoints();
+        });
+    }
+
+    function flushPaths() {
+
+        if (!arcgisCredential) return;
+
+        Object.keys(tripPaths).forEach(function (id) {
+            const path = tripPaths[id];
+
+            if (!path.dirty) {
+                if (id !== tripID) delete tripPaths[id];
                 return;
             }
-            pathCreationInProgress = true;
+            if (pathsInFlight.has(id)) return;
 
-            const newPath = new Graphic({
-                geometry: path,
-                attributes: {
-                    trip_id: sentTripID
+            const version = path.version;
+            const coords = path.coords.slice();
+            let edits;
+
+            if (path.objectId === null) {
+                if (coords.length < 2) {
+                    path.dirty = false;
+                    return;
                 }
-            });
+                edits = {
+                    addFeatures: [new Graphic({
+                        geometry: { type: "polyline", paths: [coords], spatialReference: { wkid: 4326 } },
+                        attributes: { trip_id: id }
+                    })]
+                };
+            } else if (coords.length < 2) {
+                edits = { deleteFeatures: [{ objectId: path.objectId }] };
+            } else {
+                edits = {
+                    updateFeatures: [new Graphic({
+                        geometry: { type: "polyline", paths: [coords], spatialReference: { wkid: 4326 } },
+                        attributes: { OBJECTID: path.objectId, trip_id: id }
+                    })]
+                };
+            }
 
-            logMessage("Attempting to CREATE path feature (trip " + sentTripID + ")");
+            pathsInFlight.add(id);
+            let succeeded = false;
 
-            pathLayer.applyEdits({
-                addFeatures: [newPath]
-            })
-                .then(function (result) {
-                    pathCreationInProgress = false;
-                    const addResult = result.addFeatureResults[0];
-                    if (addResult.error) {
-                        logMessage("Path CREATE rejected by server: " +
-                            JSON.stringify(addResult.error), true);
-                        document.getElementById("pathStatus").textContent = "Create failed";
-                    } else {
-                        logMessage("Path created, OBJECTID " + addResult.objectId);
-                        document.getElementById("pathStatus").textContent =
-                            "Created (OBJECTID " + addResult.objectId + ")";
-                        refreshMapLayer(pathLayer.url);
-                        if (sentTripID !== tripID) return;
-                        pathObjectID = addResult.objectId;
-                        if (pathCoordinates.length < 2) {
-                            deletePath();
-                        } else if (pathCoordinates.length !== pointsSent) {
-                            savePath();
-                        }
-                    }
-                })
-                .catch(function (error) {
-                    pathCreationInProgress = false;
-                    logMessage("Path CREATE request failed: " + error.message, true);
-                    document.getElementById("pathStatus").textContent = "Create failed";
-                });
-
-        } else {
-
-            const updatedPath = new Graphic({
-                geometry: path,
-                attributes: {
-                    OBJECTID: pathObjectID,
-                    trip_id: sentTripID
+            pathLayer.applyEdits(edits).then(function (result) {
+                const editResult = (result.addFeatureResults[0] ||
+                    result.updateFeatureResults[0] || result.deleteFeatureResults[0]);
+                if (editResult.error) {
+                    logMessage("Path save rejected by server (trip " + id + "): " +
+                        JSON.stringify(editResult.error), true);
+                    path.dirty = false;
+                    return;
                 }
+                if (edits.addFeatures) {
+                    path.objectId = editResult.objectId;
+                } else if (edits.deleteFeatures) {
+                    path.objectId = null;
+                }
+                if (path.version === version) path.dirty = false;
+                succeeded = true;
+                markConnectionRestored();
+                if (id === tripID) {
+                    document.getElementById("pathStatus").textContent = path.objectId === null
+                        ? "No path yet"
+                        : "Saved (" + coords.length + " points)";
+                }
+                logMessage("Path saved (trip " + id + ", " + coords.length + " points)");
+                refreshMapLayer(pathLayer.url);
+            }).catch(function (error) {
+                markConnectionLost(error);
+                if (id === tripID) {
+                    document.getElementById("pathStatus").textContent = "Waiting for connection";
+                }
+            }).then(function () {
+                pathsInFlight.delete(id);
+                savePending();
+                if (succeeded && path.dirty) flushPaths();
             });
-
-            pathLayer.applyEdits({
-                updateFeatures: [updatedPath]
-            })
-                .then(function (result) {
-                    const updateResult = result.updateFeatureResults[0];
-                    if (updateResult.error) {
-                        logMessage("Path UPDATE rejected by server: " +
-                            JSON.stringify(updateResult.error), true);
-                        document.getElementById("pathStatus").textContent = "Update failed";
-                    } else {
-                        logMessage("Path updated (" + pointsSent + " points)");
-                        document.getElementById("pathStatus").textContent =
-                            "Updated (" + pointsSent + " points)";
-                        refreshMapLayer(pathLayer.url);
-                    }
-                })
-                .catch(function (error) {
-                    logMessage("Path UPDATE request failed: " + error.message, true);
-                    document.getElementById("pathStatus").textContent = "Update failed";
-                });
-        }
+        });
     }
+
+    window.addEventListener("online", flushAll);
+    setInterval(flushAll, 15000);
+    updatePendingDisplay();
 
     function locationError(error) {
         document.getElementById("status").textContent =
@@ -433,69 +566,37 @@ require([
             watchID = null;
         }
 
-        pathCreationInProgress = false;
         document.getElementById("status").textContent = "Tracking stopped";
         isTracking = false;
         syncTrackingButton();
-    }
-
-    function deletePath() {
-        const objectId = pathObjectID;
-        pathObjectID = null;
-        pathLayer.applyEdits({
-            deleteFeatures: [{ objectId: objectId }]
-        })
-            .then(function (result) {
-                const deleteResult = result.deleteFeatureResults[0];
-                if (deleteResult.error) {
-                    logMessage("Path DELETE rejected by server: " +
-                        JSON.stringify(deleteResult.error), true);
-                } else {
-                    logMessage("Path removed (fewer than 2 points left)");
-                    document.getElementById("pathStatus").textContent = "No path yet";
-                    refreshMapLayer(pathLayer.url);
-                }
-            })
-            .catch(function (error) {
-                logMessage("Path DELETE request failed: " + error.message, true);
-            });
     }
 
     function undoLastPoint() {
 
         if (!isManualMode || pathCoordinates.length === 0) return;
 
-        const record = pointRecords.pop();
+        const pointId = pointRecords.pop();
         pathCoordinates.pop();
+        setCurrentPath(pathCoordinates);
         document.getElementById("pointCount").textContent = pathCoordinates.length;
         document.getElementById("manualStatus").textContent =
             "Point undone (" + pathCoordinates.length + " left)";
-        syncUndoButton();
 
-        record.saved.then(function (objectId) {
-            if (objectId === null) return;
-            return boatLayer.applyEdits({
-                deleteFeatures: [{ objectId: objectId }]
-            })
-                .then(function (result) {
-                    const deleteResult = result.deleteFeatureResults[0];
-                    if (deleteResult.error) {
-                        logMessage("Point DELETE rejected by server: " +
-                            JSON.stringify(deleteResult.error), true);
-                    } else {
-                        logMessage("Point removed, OBJECTID " + objectId);
-                        refreshMapLayer(boatLayer.url);
-                    }
-                });
-        }).catch(function (error) {
-            logMessage("Point DELETE request failed: " + error.message, true);
-        });
-
-        if (pathCoordinates.length >= 2) {
-            savePath();
-        } else if (pathObjectID !== null) {
-            deletePath();
+        const queued = pendingPoints.find(function (item) { return item.id === pointId; });
+        if (queued && !sendingPointIds.has(pointId)) {
+            removeFromList(pendingPoints, queued);
+            logMessage("Point removed before upload");
+        } else if (uploadedObjectIds[pointId] !== undefined) {
+            pendingDeletes.push(uploadedObjectIds[pointId]);
+            delete uploadedObjectIds[pointId];
+        } else {
+            undoneWhileSending.add(pointId);
         }
+
+        savePending();
+        updatePendingDisplay();
+        syncUndoButton();
+        flushAll();
     }
 
     function startManualTrip() {
@@ -516,8 +617,6 @@ require([
         applyTripFilter();
         pathCoordinates = [];
         pointRecords = [];
-        pathObjectID = null;
-        pathCreationInProgress = false;
         document.getElementById("pointCount").textContent = "0";
         document.getElementById("pathStatus").textContent = "No path yet";
         document.getElementById("manualStatus").textContent = "Click the map to add points";
