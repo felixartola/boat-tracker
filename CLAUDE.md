@@ -9,6 +9,12 @@
   web map. Users sign in with ArcGIS OAuth.
 - The site is plain `index.html` + `style.css` + `app.js` with no build step. The user
   copies files from GitHub into a local editor and runs them on a local server.
+- Hosting: GitHub Pages (https://felixartola.github.io/boat-tracker/) is only
+  for working on the site away from the office. The long-term host will be an
+  IIS server run by the internship director.
+- A browser extension on city computers breaks ArcGIS sign-in on the GitHub
+  Pages site (errors from `notify_events.js` / `one_time_link.js`). It works in
+  an InPrivate window. The IIS version should be tested on a city computer.
 
 ## Code style
 Do not add comments to the code (HTML, CSS or JavaScript) in any change.
