@@ -6,6 +6,7 @@ let pathCoordinates = [];
 let pathObjectID = null;
 let pathCreationInProgress = false;
 let isManualMode = false;
+let showHistory = false;
 let pointRecords = [];
 let debugPanelOpen = false;
 
@@ -108,6 +109,52 @@ require([
         map: webmap
     });
 
+    const originalFilters = new Map();
+
+    function applyTripFilter() {
+        webmap.allLayers.forEach(function (layer) {
+            if (layer.type !== "feature") return;
+            layer.load().then(function () {
+                const tripField = (layer.fields || []).find(function (field) {
+                    return field.name.toLowerCase() === "trip_id";
+                });
+                if (!tripField) return;
+                if (!originalFilters.has(layer)) {
+                    originalFilters.set(layer, layer.definitionExpression || "");
+                }
+                let tripFilter = "";
+                if (!showHistory) {
+                    tripFilter = tripID
+                        ? tripField.name + " = '" + String(tripID).replace(/'/g, "''") + "'"
+                        : "1=0";
+                }
+                const parts = [originalFilters.get(layer), tripFilter].filter(Boolean);
+                layer.definitionExpression = parts.length
+                    ? parts.map(function (part) { return "(" + part + ")"; }).join(" AND ")
+                    : null;
+            }).catch(function (error) {
+                logMessage("Could not filter layer " + layer.title + ": " + error.message, true);
+            });
+        });
+    }
+
+    function syncHistoryButton() {
+        document.getElementById("historyButton").textContent =
+            showHistory ? "Hide Past Paths" : "Show Past Paths";
+        document.getElementById("historyStatus").textContent =
+            showHistory ? "All trips" : "Current trip only";
+    }
+
+    view.when(function () {
+        applyTripFilter();
+    });
+
+    document.getElementById("historyButton").addEventListener("click", function () {
+        showHistory = !showHistory;
+        syncHistoryButton();
+        applyTripFilter();
+    });
+
     const info = new OAuthInfo({
         appId: clientID,
         portalUrl: portalURL,
@@ -174,6 +221,7 @@ require([
         }
 
         tripID = Date.now().toString();
+        applyTripFilter();
         pathCoordinates = [];
         pointRecords = [];
         pathObjectID = null;
@@ -465,6 +513,7 @@ require([
         }
 
         tripID = "manual_" + Date.now();
+        applyTripFilter();
         pathCoordinates = [];
         pointRecords = [];
         pathObjectID = null;
