@@ -143,8 +143,69 @@ require([
             showHistory ? "All trips" : "Current trip only";
     }
 
+    const boundaryServiceName = "City_Boundary_view";
+
+    function findBoundaryLayer() {
+        return webmap.allLayers.find(function (layer) {
+            return layer.type === "feature" && layer.url &&
+                layer.url.indexOf("/" + boundaryServiceName + "/") !== -1;
+        });
+    }
+
+    function applyBoundaryFilter() {
+        const boundaryLayer = findBoundaryLayer();
+        if (!boundaryLayer) {
+            logMessage("City limits layer not found in the web map; showing all locations", true);
+            return;
+        }
+
+        boundaryLayer.queryFeatures({
+            where: "1=1",
+            returnGeometry: true,
+            outSpatialReference: view.spatialReference
+        }).then(function (result) {
+            const rings = [];
+            result.features.forEach(function (feature) {
+                if (feature.geometry && feature.geometry.rings) {
+                    feature.geometry.rings.forEach(function (ring) { rings.push(ring); });
+                }
+            });
+            if (rings.length === 0) {
+                logMessage("City limits layer has no shapes; showing all locations", true);
+                return;
+            }
+            const boundary = {
+                type: "polygon",
+                rings: rings,
+                spatialReference: view.spatialReference
+            };
+
+            webmap.allLayers.forEach(function (layer) {
+                if (layer.type !== "feature" || layer === boundaryLayer) return;
+                layer.load().then(function () {
+                    const hasTripField = (layer.fields || []).some(function (field) {
+                        return field.name.toLowerCase() === "trip_id";
+                    });
+                    if (!hasTripField) return;
+                    return view.whenLayerView(layer).then(function (layerView) {
+                        layerView.filter = {
+                            geometry: boundary,
+                            spatialRelationship: "intersects"
+                        };
+                        logMessage("Showing only locations inside city limits on " + layer.title);
+                    });
+                }).catch(function (error) {
+                    logMessage("Could not apply city limits to " + layer.title + ": " + error.message, true);
+                });
+            });
+        }).catch(function (error) {
+            logMessage("Could not load city limits: " + error.message, true);
+        });
+    }
+
     view.when(function () {
         applyTripFilter();
+        applyBoundaryFilter();
     });
 
     document.getElementById("historyButton").addEventListener("click", function () {
