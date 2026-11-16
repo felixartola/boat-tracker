@@ -379,6 +379,10 @@ body {
   margin-bottom: 12px;
 }
 
+.feature-hidden {
+  display: none !important;
+}
+
 @media (max-width: 980px) {
   .main-content {
     flex-direction: column;

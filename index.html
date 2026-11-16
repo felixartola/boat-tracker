@@ -28,9 +28,22 @@
                         <span class="status-label">Status:</span>
                         <span id="arcgisStatus" class="status-badge status-offline">Not signed in</span>
                     </div>
+                    <div class="status-row">
+                        <span class="status-label">Role:</span>
+                        <span id="roleStatus" class="status-text">Not signed in</span>
+                    </div>
                 </div>
 
-                <div class="card control-card">
+                <div class="card dev-card" data-feature="devTools">
+                    <div class="card-header">Developer View</div>
+                    <button id="viewAsButton" class="btn btn-secondary btn-lg">Switch to Inspector View</button>
+                    <div class="status-row">
+                        <span class="status-label">Viewing as:</span>
+                        <span id="viewAsStatus" class="status-text">Developer</span>
+                    </div>
+                </div>
+
+                <div class="card control-card" data-feature="tracking">
                     <div class="card-header">Tracking Control</div>
                     <button id="trackingButton" class="btn btn-success btn-lg">Start Tracking</button>
                     <div class="status-row">
@@ -39,7 +52,7 @@
                     </div>
                 </div>
 
-                <div class="card manual-card">
+                <div class="card manual-card" data-feature="manualEntry">
                     <div class="card-header">Manual Entry</div>
                     <button id="manualButton" class="btn btn-primary btn-lg">Start Manual Trip</button>
                     <button id="undoButton" class="btn btn-secondary btn-lg" disabled>Undo Last Point</button>
@@ -49,7 +62,7 @@
                     </div>
                 </div>
 
-                <div class="card history-card">
+                <div class="card history-card" data-feature="pastPaths">
                     <div class="card-header">Map Display</div>
                     <button id="historyButton" class="btn btn-secondary btn-lg">Show Past Paths</button>
                     <div class="status-row">
@@ -111,7 +124,7 @@
             </aside>
         </div>
 
-        <div class="debug-menu">
+        <div class="debug-menu" data-feature="debug">
             <button id="debugToggle" class="btn btn-secondary debug-toggle">
                 <span class="debug-toggle-icon">▶</span> Debug Menu
             </button>

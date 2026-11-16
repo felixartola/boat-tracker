@@ -8,6 +8,105 @@ let showHistory = false;
 let pointRecords = [];
 let debugPanelOpen = false;
 
+const roles = {
+    developer: {
+        label: "Developer",
+        groups: [],
+        features: ["tracking", "manualEntry", "pastPaths", "debug", "devTools"]
+    },
+    supervisor: {
+        label: "Supervisor",
+        groups: [],
+        features: ["tracking", "manualEntry", "pastPaths"]
+    },
+    inspector: {
+        label: "Inspector",
+        groups: [],
+        features: ["tracking", "manualEntry", "pastPaths"]
+    }
+};
+const rolePriority = ["developer", "supervisor", "inspector"];
+const developerExtraFeatures = ["debug", "devTools"];
+const viewAsKey = "boatTrackerViewAs";
+
+let currentRole = null;
+let developerViewAs = "developer";
+
+try {
+    if (localStorage.getItem(viewAsKey) === "inspector") developerViewAs = "inspector";
+} catch (error) {
+}
+
+function anyRoleGroupsConfigured() {
+    return rolePriority.some(function (name) {
+        return roles[name].groups.length > 0;
+    });
+}
+
+function chooseRole(orgRole, groups) {
+    if (orgRole === "org_admin") return "developer";
+
+    const names = groups.map(function (group) {
+        return String(group.title).toLowerCase();
+    });
+    const ids = groups.map(function (group) {
+        return String(group.id).toLowerCase();
+    });
+
+    const matched = rolePriority.find(function (name) {
+        return roles[name].groups.some(function (entry) {
+            const value = String(entry).toLowerCase();
+            return names.indexOf(value) !== -1 || ids.indexOf(value) !== -1;
+        });
+    });
+    if (matched) return matched;
+
+    return anyRoleGroupsConfigured() ? "inspector" : "developer";
+}
+
+function activeFeatures() {
+    if (!currentRole) return null;
+    if (currentRole === "developer" && developerViewAs === "inspector") {
+        return roles.inspector.features.concat(developerExtraFeatures);
+    }
+    return roles[currentRole].features;
+}
+
+function applyRoleFeatures() {
+    const features = activeFeatures();
+    document.querySelectorAll("[data-feature]").forEach(function (element) {
+        const feature = element.getAttribute("data-feature");
+        const allowed = features === null
+            ? feature !== "devTools"
+            : features.indexOf(feature) !== -1;
+        element.classList.toggle("feature-hidden", !allowed);
+    });
+
+    document.getElementById("roleStatus").textContent =
+        currentRole ? roles[currentRole].label : "Not signed in";
+    document.getElementById("viewAsStatus").textContent =
+        developerViewAs === "inspector" ? "Inspector (with debug)" : "Developer";
+    document.getElementById("viewAsButton").textContent =
+        developerViewAs === "inspector" ? "Switch to Developer View" : "Switch to Inspector View";
+}
+
+function setRole(roleName) {
+    currentRole = roleName;
+    logMessage("Signed in as " + roles[roleName].label);
+    applyRoleFeatures();
+}
+
+document.getElementById("viewAsButton").addEventListener("click", function () {
+    developerViewAs = developerViewAs === "inspector" ? "developer" : "inspector";
+    try {
+        localStorage.setItem(viewAsKey, developerViewAs);
+    } catch (error) {
+    }
+    applyRoleFeatures();
+});
+
+applyRoleFeatures();
+
 const portalURL = "https://www.arcgis.com";
 const clientID = "MpbbtiE8vXvj6by6";
 
@@ -93,8 +192,32 @@ require([
     "esri/identity/OAuthInfo",
     "esri/identity/IdentityManager",
     "esri/layers/FeatureLayer",
-    "esri/Graphic"
-], function (WebMap, MapView, OAuthInfo, esriId, FeatureLayer, Graphic) {
+    "esri/Graphic",
+    "esri/portal/Portal"
+], function (WebMap, MapView, OAuthInfo, esriId, FeatureLayer, Graphic, Portal) {
+
+    function loadUserRole() {
+        const fallback = anyRoleGroupsConfigured() ? "inspector" : "developer";
+        try {
+            const portal = new Portal({ url: portalURL });
+            portal.load().then(function () {
+                const user = portal.user;
+                if (!user) {
+                    setRole(fallback);
+                    return;
+                }
+                return user.fetchGroups().then(function (groups) {
+                    setRole(chooseRole(user.role, groups || []));
+                });
+            }).catch(function (error) {
+                logMessage("Could not look up user role: " + error.message, true);
+                setRole(fallback);
+            });
+        } catch (error) {
+            logMessage("Could not look up user role: " + error.message, true);
+            setRole(fallback);
+        }
+    }
 
     const webmap = new WebMap({
         portalItem: {
@@ -235,6 +358,7 @@ require([
             document.getElementById("arcgisStatus").textContent = "Signed in";
             document.getElementById("arcgisStatus").className = "status-badge status-online";
             flushAll();
+            loadUserRole();
         })
         .catch(function () {
         });
@@ -247,6 +371,7 @@ require([
                 document.getElementById("arcgisStatus").className = "status-badge status-online";
                 document.getElementById("signInButton").disabled = true;
                 flushAll();
+                loadUserRole();
             })
             .catch(function (error) {
                 logMessage("Sign-in failed: " + error.message, true);
